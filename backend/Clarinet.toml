@@ -8,6 +8,9 @@ boot_contracts = ["pox", "costs-v2", "bns"]
 
 [project.cache_location]
 path = ".requirements"
+[contracts.data-trait]
+path = "contracts/data-trait.clar"
+
 [contracts.flight-surety-app]
 path = "contracts/flight-surety-app.clar"
 
