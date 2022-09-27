@@ -15,17 +15,17 @@ Clarinet.test({
     name: "Check if whitelisting App-Contract is working",
     async fn(chain: Chain, accounts: Map<string, Account>) {
         let deployer = accounts.get("deployer")!;
-
+        // check not whitelisted
         let check = readIsWhitelisted(chain, deployer);
         check.result.expectBool(false);
-
+        // contract call to whitelist appContract
         let block = chain.mineBlock([
             whitelistAppContract(deployer, deployer),
         ]);
         assertEquals(block.receipts.length, 1);
         assertEquals(block.height, 2);
         block.receipts[0].result.expectOk().expectBool(true);
-        
+        // check whitelisted equals true
         check = readIsWhitelisted(chain, deployer);
         check.result.expectBool(true);
     },
