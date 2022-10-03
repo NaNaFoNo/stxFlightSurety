@@ -42,7 +42,7 @@ Clarinet.test({
         ]);
         assertEquals(block.receipts.length, 1);
         assertEquals(block.height, 2);
-        block.receipts[0].result.expectErr().expectUint(2001);
+        block.receipts[0].result.expectErr().expectUint(1001);
         
         let check = readIsWhitelisted(chain, deployer);
         check.result.expectBool(false);

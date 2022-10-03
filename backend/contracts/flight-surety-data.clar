@@ -10,6 +10,7 @@
 
 (define-constant AIRLINE_NOT_FOUND (err u2001))
 (define-constant BAD_AIRLINE_STATUS (err u2002))
+(define-constant AIRLINE_ALREADY_REGISTERED (err u2003))
 
 ;; constants
 ;;
@@ -29,10 +30,10 @@
   { 
     airline-state: uint,
     airline-name: (string-ascii 40),
-    voters: (list 25 { voter: principal, vote: bool}),
-    votes: uint,
+    voters:  (list 25 principal),
   }
 )
+
 
 ;; add first ariline
 (map-set airlines 
@@ -41,7 +42,6 @@
     airline-state: u2,
     airline-name: "First Airline",
     voters: (list ),
-    votes: u0,
   }  
 )
 (var-set registeredAirlines u1)
@@ -49,14 +49,45 @@
 
 ;; private functions
 ;;
-(define-public (is-airline (address principal)) 
-  (let 
-    (
-      (status (get airline-state (unwrap! (map-get? airlines address) AIRLINE_NOT_FOUND)))
-    ) 
-    (ok (> status u1))
+(define-private (is-airline (address principal)) (> (unwrap-panic (get airline-state (map-get? airlines address))) u1)
+  ;;(let 
+  ;;  (
+  ;;    (status (get airline-state (unwrap! (map-get? airlines address) AIRLINE_NOT_FOUND)))
+  ;;  ) 
+  ;;  (ok (> status u1))
+  ;;)
+)
+
+(define-private (register-airline-init (airline principal) (airlineName (string-ascii 40)) (caller principal)) 
+  (begin
+    (map-set airlines airline {
+      airline-state: u1,
+      airline-name: airlineName,
+      voters:  (list caller) ,
+    })
+    (ok "Airline accepted for application")
   )
 )
+
+(define-private (register-airline-vote (airline principal) (caller principal)) 
+  (let 
+    (
+      (airlineData (unwrap-panic (map-get? airlines airline)))
+      (voters (get voters airlineData))
+      (newVotes (append (list ) voters) )
+      (output 
+        (merge airlineData
+          {
+            voters: (unwrap-panic (as-max-len? (append voters caller) u25)) ,
+          }
+        )
+      )
+    )
+    (map-set airlines airline output)
+    (ok "Airline vote registered")
+  )
+)
+
 
 
 ;; public functions
@@ -66,24 +97,48 @@
 	(default-to false (map-get? authorizedCallers app-contract))
 )
 
-(define-public (set-whitelisted (app-contract principal) (whitelisted bool))
+(define-public (set-whitelisted (appContract principal) (whitelisted bool))
 	(begin
 		(asserts! (is-eq CONTRACT_OWNER tx-sender) ERR_UNAUTHORISED)
     ;; #[filter(app-contract, whitelisted)]
-		(ok (map-set authorizedCallers app-contract whitelisted))
+		(ok (map-set authorizedCallers appContract whitelisted))
 	)
 )
 ;; airlines
 (define-read-only (get-airlines-count) 
   (var-get registeredAirlines)
 )
+(define-read-only (get-airline (airline principal)) 
+  (map-get? airlines airline)
+)
 
-(define-read-only (get-airline-status (airline-address principal))
+
+;; new airline airline State 0 = Init, Voting 1 = Application
+(define-public (register-airline (airline principal) (airlineName (string-ascii 30)) (caller principal) (airlineState uint)) 
+  (let
+    (
+      (airlineData (map-get? airlines airline))
+    ) 
+    (if (is-eq u0 airlineState)
+      (register-airline-init airline airlineName caller) 
+      (register-airline-vote airline caller) 
+    )
+  )
+)
+
+(define-read-only (get-airline-status (airlineAddress principal))
   (let 
     (
-      (status (get airline-state (unwrap! (map-get? airlines airline-address) AIRLINE_NOT_FOUND)))
+      (status (get airline-state (unwrap! (map-get? airlines airlineAddress) AIRLINE_NOT_FOUND)))
     ) 
     (ok (unwrap! (element-at AIRLINE_STATE status) BAD_AIRLINE_STATUS))
+  )
+)
+
+(define-read-only (test-airline (address principal))
+  (begin 
+    (asserts! (is-some (map-get? airlines address)) (err u1234))
+    (ok (is-airline address))
   )
   
 )
