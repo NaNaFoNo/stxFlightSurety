@@ -100,7 +100,7 @@
 (define-public (set-whitelisted (appContract principal) (whitelisted bool))
 	(begin
 		(asserts! (is-eq CONTRACT_OWNER tx-sender) ERR_UNAUTHORISED)
-    ;; #[filter(app-contract, whitelisted)]
+    ;; #[filter(appContract, whitelisted)]
 		(ok (map-set authorizedCallers appContract whitelisted))
 	)
 )
@@ -114,12 +114,14 @@
 
 
 ;; new airline airline State 0 = Init, Voting 1 = Application
+
 (define-public (register-airline (airline principal) (airlineName (string-ascii 30)) (caller principal) (airlineState uint)) 
   (let
     (
       (airlineData (map-get? airlines airline))
     ) 
     (if (is-eq u0 airlineState)
+      ;; #[filter(airline, airlineName, caller)]
       (register-airline-init airline airlineName caller) 
       (register-airline-vote airline caller) 
     )
