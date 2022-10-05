@@ -16,6 +16,7 @@
 ;;
 (define-constant CONTRACT_OWNER tx-sender)
 (define-constant CONTRACT_ADDRESS (as-contract tx-sender))
+(define-constant AIRLINE_FUNDING u1000000)
 (define-constant AIRLINE_STATE 
   (list "Init" "Application" "Registered" "Funded")
 )
@@ -41,19 +42,9 @@
 (define-map RegisteredAirlines { airline-id: uint } { airline: principal })
 (define-map VotingAirlines { airline-id: uint } { airline: principal, voters:  (list 25 principal) ,active: bool })
 
+;; init first airline
 (ok (register-airline-init 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5 (some "Name") 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5))
 (ok (register-airline 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5))
-;; add first ariline
-;;(map-set Airlines 
-;;  'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5 
-;;  {
-;;    airline-id: u1,
-;;    airline-state: u2,
-;;    airline-name: "First Airline",
-;;    voters: (list ),
-;;  }  
-;;)
-;;(var-set registeredAirlines u1)
 
 
 ;; private functions
@@ -71,6 +62,7 @@
     })
     (var-set idCounter (+ (var-get idCounter) u1))
     (var-set authAirlines (+ (var-get authAirlines) u1))
+    (print "test")
     (ok "Airline in application, open for Votes")
   )
 )
@@ -155,7 +147,7 @@
 ;; assert airline is registered
 (define-public (fund-airline (airline principal))
   (begin
-    (try! (stx-transfer? u1236 airline CONTRACT_ADDRESS) )
+    (try! (stx-transfer? AIRLINE_FUNDING airline CONTRACT_ADDRESS) ) ;; the sender principal has to be current tx-sender
     ;; #[filter(airline)]
     (ok (map-set Airlines airline (merge (unwrap-panic (map-get? Airlines airline)) {airline-state: u3})))
   )

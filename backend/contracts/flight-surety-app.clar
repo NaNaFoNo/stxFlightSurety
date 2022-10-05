@@ -24,6 +24,9 @@
 ;;  (as-contract (contract-call? data-storage-ref check-connection tx-sender))
 ;;  
 ;;)
+(define-public (test) 
+  (ok u1)
+)
 
 ;;(define-public (call-data-contract)
 ;;  (contract-call? .flight-surety-data check-connection tx-sender)
