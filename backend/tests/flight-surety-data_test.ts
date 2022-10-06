@@ -4,14 +4,15 @@ import { assertEquals } from 'https://deno.land/std@0.90.0/testing/asserts.ts';
 
 const dataContract = 'flight-surety-data';
 const appContract = 'flight-surety-app';
-const appContractPrincipal = (deployer: Account) => `${deployer.address}.${appContract}`;
 
 
-const whitelistAppContract = (deployer: Account, sender: Account) => 
-    Tx.contractCall(dataContract,'set-whitelisted',[types.principal(deployer.address.concat('.', appContract)), types.bool(true)], sender.address);
-
+// read-only functions
 const readIsWhitelisted = (chain: Chain, deployer: Account) =>
     chain.callReadOnlyFn(dataContract, "is-whitelisted", [types.principal(deployer.address.concat('.', appContract)),], deployer.address);
+
+// public functions
+const whitelistAppContract = (deployer: Account, sender: Account) => 
+    Tx.contractCall(dataContract,'set-whitelisted',[types.principal(deployer.address.concat('.', appContract)), types.bool(true)], sender.address);
 
 const applicationAirlineTx = (chain: Chain, airline: Account, airlineName: string , caller: Account, appSender: string) =>
     Tx.contractCall(dataContract, "application-airline", [types.principal(airline.address), types.some(types.ascii(airlineName)), types.principal(caller.address)], appSender );
@@ -24,7 +25,7 @@ const fundAirlineTx = (chain: Chain, airline: Account, caller: string) =>
 
 
 
-
+// unit tests
 Clarinet.test({
     name: "Check if whitelisting App-Contract is working",
     async fn(chain: Chain, accounts: Map<string, Account>) {

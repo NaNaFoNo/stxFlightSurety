@@ -49,7 +49,7 @@
 
 ;; private functions
 ;;
-(define-private (is-airline (address principal)) (> (unwrap-panic (get airline-state (map-get? Airlines address))) u1))
+
 
 (define-private (register-airline-init (airline principal) (airlineName (optional (string-ascii 40))) (caller principal)) 
   (begin
@@ -96,6 +96,17 @@
 )
 ;; (contract-call? .flight-surety-data is-whitelisted 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM)
 
+;; a) no map  b) u0/u1  c) u2/u3   ab= false  c= true
+(define-read-only (is-airline (address principal))
+  (let 
+    (
+      (mapping (map-get? Airlines address)) ;;; optional
+      (state (get airline-state mapping)) ;;; optional
+    )
+    (ok (> (default-to u0 state) u1))
+  )
+;; (contract-call? .flight-surety-data test-airline 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5)
+)
 
 (define-public (set-whitelisted (appContract principal) (whitelisted bool))
 	(begin
@@ -166,13 +177,13 @@
 )
 ;; (contract-call? .flight-surety-data get-airline-status 'ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG)
 
-(define-read-only (test-airline (address principal))
-  (begin 
-    (asserts! (is-some (map-get? Airlines address)) (err u1234))
-    (ok (is-airline address))
-  )
+
+
+
+
+
   
-)
+
 ;;(contract-call? .flight-surety-data get-airline-status 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5)
 ;;(define-public (check-connection (sender principal))
 ;;  (begin
