@@ -10,6 +10,9 @@ const appContract = 'flight-surety-app';
 const readIsWhitelisted = (chain: Chain, deployer: Account) =>
     chain.callReadOnlyFn(dataContract, "is-whitelisted", [types.principal(deployer.address.concat('.', appContract)),], deployer.address);
 
+const isAirline = (chain: Chain, airline: Account, sender: Account) =>
+    chain.callReadOnlyFn(dataContract, "is-airline", [types.principal(airline.address),], sender.address);
+
 // public functions
 const whitelistAppContract = (deployer: Account, sender: Account) => 
     Tx.contractCall(dataContract,'set-whitelisted',[types.principal(deployer.address.concat('.', appContract)), types.bool(true)], sender.address);
@@ -25,7 +28,8 @@ const fundAirlineTx = (chain: Chain, airline: Account, caller: string) =>
 
 
 
-// unit tests
+// *** unit tests *** //
+// whitelist 
 Clarinet.test({
     name: "Check if whitelisting App-Contract is working",
     async fn(chain: Chain, accounts: Map<string, Account>) {
@@ -50,10 +54,10 @@ Clarinet.test({
     name: "Check if whitelisting doesn't work for not contract owner principals",
     async fn(chain: Chain, accounts: Map<string, Account>) {
         let deployer = accounts.get("deployer")!;
-        let wallet1 = accounts.get("wallet_1")!;
+        let airline1 = accounts.get("airline_1")!;
 
         let block = chain.mineBlock([
-            whitelistAppContract(deployer, wallet1),
+            whitelistAppContract(deployer, airline1),
         ]);
         assertEquals(block.receipts.length, 1);
         assertEquals(block.height, 2);
@@ -64,23 +68,29 @@ Clarinet.test({
     },
 });
 
+// airlines
+// check if arirline is registered on deployment
+
+// airline to application
+
+// airline register 
+
+// airline funding
+
 Clarinet.test({
     name: "Check application-airline",
     async fn(chain: Chain, accounts: Map<string, Account>) {
         let deployer = accounts.get("deployer")!;
-        let wallet1 = accounts.get("wallet_1")!;
+        let airline1 = accounts.get("airline_1")!;
         let wallet2 = accounts.get("wallet_2")!;
         let appCaller =  deployer.address.concat('.', appContract)
 
         let block = chain.mineBlock([
-            applicationAirlineTx(chain, wallet2, "Name" , wallet2, deployer.address)
+            applicationAirlineTx(chain, wallet2, "Name" , wallet2, airline1.address)
         ]);
         assertEquals(block.receipts.length, 1);
         assertEquals(block.height, 2);
-        console.log("applic::::", block)
-        console.log(block.receipts[0].events)
-        console.log("Deployer address:::" , deployer.address, typeof(deployer.address))
-        console.log("TYPE::::::",typeof(deployer.address.concat('.', appContract)))
+        
         //block.receipts[0].result.expectErr().expectUint(1001);
         //
         //let check = readIsWhitelisted(chain, deployer);
@@ -92,18 +102,20 @@ Clarinet.test({
     name: "Check register-airline",
     async fn(chain: Chain, accounts: Map<string, Account>) {
         let deployer = accounts.get("deployer")!;
-        let wallet1 = accounts.get("wallet_1")!;
+        let airline1 = accounts.get("airline_1")!;
         let wallet2 = accounts.get("wallet_2")!;
-        let appCaller =  deployer.address.concat('.', appContract)
+
 
         let block = chain.mineBlock([
-            applicationAirlineTx(chain, wallet2, "Name" , wallet2, deployer.address),
+            applicationAirlineTx(chain, wallet2, "Name" , airline1, airline1.address),
             registerAirlineTx(chain, wallet2, deployer.address)
         ]);
-        assertEquals(block.receipts.length, 2);
-        assertEquals(block.height, 2);
         console.log("register::::", block)
         console.log(block.receipts[0].events)
+        assertEquals(block.receipts.length, 2);
+        assertEquals(block.height, 2);
+       
+        //console.log(block.receipts[1].events)
         //block.receipts[0].result.expectErr().expectUint(1001);
         //
         //let check = readIsWhitelisted(chain, deployer);
@@ -115,20 +127,20 @@ Clarinet.test({
     name: "Check fund-airline",
     async fn(chain: Chain, accounts: Map<string, Account>) {
         let deployer = accounts.get("deployer")!;
-        let wallet1 = accounts.get("wallet_1")!;
+        let airline1 = accounts.get("airline_1")!;
         let wallet2 = accounts.get("wallet_2")!;
         let appCaller =  deployer.address.concat('.', appContract)
 
         let block = chain.mineBlock([
-            applicationAirlineTx(chain, wallet2, "Name" , wallet2, deployer.address),
-            registerAirlineTx(chain, wallet2, deployer.address),
+            applicationAirlineTx(chain, wallet2, "Name" , airline1, airline1.address),
+            registerAirlineTx(chain, wallet2, airline1.address),
             fundAirlineTx(chain, wallet2, wallet2.address),
         ]);
         assertEquals(block.receipts.length, 3);
         assertEquals(block.height, 2);
-        console.log("fund::::", block)
-        console.log(block.receipts[0].events)
-        console.log(chain.getAssetsMaps())
+        // console.log("fund::::", block)
+        // console.log(block.receipts[0].events)
+        // console.log(chain.getAssetsMaps())
         //block.receipts[0].result.expectErr().expectUint(1001);
         //
         //let check = readIsWhitelisted(chain, deployer);

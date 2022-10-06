@@ -11,6 +11,9 @@
 (define-constant AIRLINE_NOT_FOUND (err u2001))
 (define-constant BAD_AIRLINE_STATUS (err u2002))
 (define-constant AIRLINE_ALREADY_REGISTERED (err u2003))
+(define-constant ONLY_BY_REGISTERED_AIRLINE (err u2004))
+(define-constant AIRLINE_NOT_IN_APPLICATION (err u2005))
+(define-constant AIRLINE_NAME_NOT_PROVIDED (err u2006))
 
 ;; constants
 ;;
@@ -43,8 +46,16 @@
 (define-map VotingAirlines { airline-id: uint } { airline: principal, voters:  (list 25 principal) ,active: bool })
 
 ;; init first airline
-(ok (register-airline-init 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5 (some "Name") 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5))
-(ok (register-airline 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5))
+(map-set Airlines 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5
+  { 
+    airline-id: u1,
+    airline-state: u2,
+    airline-name: "First Airline",
+    voters:  (list ),
+  }
+)
+(var-set registeredAirlines u1)
+(var-set idCounter u1)
 
 
 ;; private functions
@@ -53,7 +64,7 @@
 
 (define-private (register-airline-init (airline principal) (airlineName (optional (string-ascii 40))) (caller principal)) 
   (begin
-    (asserts! (is-some airlineName) (err u4587))
+    (asserts! (is-some airlineName) AIRLINE_NAME_NOT_PROVIDED)
     (map-set Airlines airline {
       airline-id: (+ (var-get idCounter) u1),
       airline-state: u1,
@@ -62,7 +73,6 @@
     })
     (var-set idCounter (+ (var-get idCounter) u1))
     (var-set authAirlines (+ (var-get authAirlines) u1))
-    (print "test")
     (ok "Airline in application, open for Votes")
   )
 )
@@ -97,15 +107,12 @@
 ;; (contract-call? .flight-surety-data is-whitelisted 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM)
 
 ;; a) no map  b) u0/u1  c) u2/u3   ab= false  c= true
-(define-read-only (is-airline (address principal))
-  (let 
-    (
-      (mapping (map-get? Airlines address)) ;;; optional
-      (state (get airline-state mapping)) ;;; optional
-    )
-    (ok (> (default-to u0 state) u1))
-  )
-;; (contract-call? .flight-surety-data test-airline 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5)
+(define-read-only (has-airline-state (address principal) (minState uint))
+  
+    
+    (> (default-to u0 (get airline-state (map-get? Airlines address))) (- minState u1))
+  
+;; (contract-call? .flight-surety-data has-airline-state 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5 u2)
 )
 
 (define-public (set-whitelisted (appContract principal) (whitelisted bool))
@@ -135,7 +142,8 @@
   (let
     (
       (airlineState (get airline-state (map-get? Airlines airline)))
-    ) 
+    )
+    (asserts! (has-airline-state caller u2) ONLY_BY_REGISTERED_AIRLINE)
     (if (is-eq none airlineState)
       ;; #[filter(airline, airlineName, caller)]
       (register-airline-init airline airlineName caller) 
@@ -146,7 +154,8 @@
 ;; (contract-call? .flight-surety-data application-airline 'ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG "Airline Name" 'ST2REHHS5J3CERCRBEPMGH7921Q6PYKAADT7JP2VB)
 
 (define-public (register-airline (airline principal)) 
-  (begin 
+  (begin
+    (asserts! (has-airline-state airline u1) AIRLINE_NOT_IN_APPLICATION)  ;; change to votecount?? 
     (var-set authAirlines (- (var-get authAirlines) u1))
     (var-set registeredAirlines (+ (var-get registeredAirlines) u1))
     ;; #[filter(airline)]
