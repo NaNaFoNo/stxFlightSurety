@@ -16,7 +16,7 @@ balance = 100_000_000_000_000
 # stx_address: ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5
 # btc_address: mr1iPkD9N3RJZZxXRk7xF9d36gffa6exNC
 
-[accounts.wallet_2]
+[accounts.airline_2]
 mnemonic = "hold excess usual excess ring elephant install account glad dry fragile donkey gaze humble truck breeze nation gasp vacuum limb head keep delay hospital"
 balance = 100_000_000_000_000
 # secret_key: 530d9f61984c888536871c6573073bdfc0058896dc1adfe9a6a10dfacadc209101

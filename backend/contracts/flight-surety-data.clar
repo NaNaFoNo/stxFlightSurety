@@ -73,7 +73,7 @@
     })
     (var-set idCounter (+ (var-get idCounter) u1))
     (var-set authAirlines (+ (var-get authAirlines) u1))
-    (ok "Airline in application, open for Votes")
+    (ok {airline-state: u1, votes: u1})
   )
 )
 
@@ -91,8 +91,9 @@
         )
       )
     )
+    ;; assert caller not in voting list
     (map-set Airlines airline output)
-    (ok "Voted on Airline Application")
+    (ok {airline-state: u1, votes: (+ (len voters) u1)})
   )
 )
 
@@ -108,12 +109,9 @@
 
 ;; a) no map  b) u0/u1  c) u2/u3   ab= false  c= true
 (define-read-only (has-airline-state (address principal) (minState uint))
-  
-    
-    (> (default-to u0 (get airline-state (map-get? Airlines address))) (- minState u1))
-  
-;; (contract-call? .flight-surety-data has-airline-state 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5 u2)
+    (> (default-to u0 (get airline-state (map-get? Airlines address))) (- minState u1)) 
 )
+;; (contract-call? .flight-surety-data has-airline-state 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5 u2)
 
 (define-public (set-whitelisted (appContract principal) (whitelisted bool))
 	(begin
@@ -144,6 +142,7 @@
       (airlineState (get airline-state (map-get? Airlines airline)))
     )
     (asserts! (has-airline-state caller u2) ONLY_BY_REGISTERED_AIRLINE)
+    ;; asserts is not yet registered or funded airline
     (if (is-eq none airlineState)
       ;; #[filter(airline, airlineName, caller)]
       (register-airline-init airline airlineName caller) 
