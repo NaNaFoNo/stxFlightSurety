@@ -10,8 +10,8 @@ const appContract = 'flight-surety-app';
 const readIsWhitelisted = (chain: Chain, deployer: Account) =>
     chain.callReadOnlyFn(dataContract, "is-whitelisted", [types.principal(deployer.address.concat('.', appContract)),], deployer.address);
 
-const isAirline = (chain: Chain, airline: Account, sender: Account) =>
-    chain.callReadOnlyFn(dataContract, "is-airline", [types.principal(airline.address),], sender.address);
+const isAirline = (chain: Chain, airline: Account, sender: Account, state: number) =>
+    chain.callReadOnlyFn(dataContract, "has-airline-state", [types.principal(airline.address),types.uint(state)], sender.address);
 
 // public functions
 const whitelistAppContract = (deployer: Account, sender: Account) => 
@@ -29,7 +29,7 @@ const fundAirlineTx = (chain: Chain, airline: Account, caller: string) =>
 
 
 // *** unit tests *** //
-// whitelist 
+// whitelist app contract
 Clarinet.test({
     name: "Check if whitelisting App-Contract is working",
     async fn(chain: Chain, accounts: Map<string, Account>) {
@@ -70,7 +70,21 @@ Clarinet.test({
 
 // airlines
 // check if arirline is registered on deployment
+Clarinet.test({
+    name: "Check airline registered on deployment",
+    async fn(chain: Chain, accounts: Map<string, Account>) {
+        let deployer = accounts.get("deployer")!;
+        let airline1 = accounts.get("airline_1")!;
 
+        assertEquals(chain.blockHeight, 1);
+
+        let read = isAirline(chain, airline1, deployer, 2)
+        read.result.expectBool(true);
+
+        read = isAirline(chain, deployer, deployer, 2)
+        read.result.expectBool(false);
+    },
+});
 // airline to application
 
 // airline register 
