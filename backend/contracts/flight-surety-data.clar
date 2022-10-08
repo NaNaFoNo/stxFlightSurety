@@ -14,6 +14,7 @@
 (define-constant ONLY_BY_REGISTERED_AIRLINE (err u2004))
 (define-constant AIRLINE_NOT_IN_APPLICATION (err u2005))
 (define-constant AIRLINE_NAME_NOT_PROVIDED (err u2006))
+(define-constant ALREADY_VOTED (err u2007))
 
 ;; constants
 ;;
@@ -64,7 +65,6 @@
 
 (define-private (register-airline-init (airline principal) (airlineName (optional (string-ascii 40))) (caller principal)) 
   (begin
-    (asserts! (is-some airlineName) AIRLINE_NAME_NOT_PROVIDED)
     (map-set Airlines airline {
       airline-id: (+ (var-get idCounter) u1),
       airline-state: u1,
@@ -91,7 +91,7 @@
         )
       )
     )
-    ;; assert caller not in voting list
+    (asserts! (is-none (index-of voters caller)) ALREADY_VOTED)
     (map-set Airlines airline output)
     (ok {airline-state: u1, votes: (+ (len voters) u1)})
   )
@@ -134,15 +134,15 @@
 ;; (contract-call? .flight-surety-data get-airline 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5)
 
 
-;; assert airline name is given on init
 ;; assert airline is not registered / funded
 (define-public (application-airline (airline principal) (airlineName (optional (string-ascii 30))) (caller principal)) 
   (let
     (
       (airlineState (get airline-state (map-get? Airlines airline)))
     )
+    (asserts! (is-whitelisted tx-sender) NOT_WHITELISTED)
     (asserts! (has-airline-state caller u2) ONLY_BY_REGISTERED_AIRLINE)
-    ;; asserts is not yet registered or funded airline
+    (asserts! (is-eq (has-airline-state airline u2) false) AIRLINE_ALREADY_REGISTERED)
     (if (is-eq none airlineState)
       ;; #[filter(airline, airlineName, caller)]
       (register-airline-init airline airlineName caller) 
