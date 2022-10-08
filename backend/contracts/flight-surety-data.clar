@@ -91,7 +91,7 @@
         )
       )
     )
-    (asserts! (is-none (index-of voters caller)) ALREADY_VOTED)
+    (asserts! (is-none (index-of voters caller)) ALREADY_VOTED)  ;; Ok
     (map-set Airlines airline output)
     (ok {airline-state: u1, votes: (+ (len voters) u1)})
   )

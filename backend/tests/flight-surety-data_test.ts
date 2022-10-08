@@ -125,6 +125,28 @@ Clarinet.test({
 });
 
 Clarinet.test({
+    name: "Check application-airline asserts! are working",
+    async fn(chain: Chain, accounts: Map<string, Account>) {
+        const { registerBlock, deployer, airlines } = registerAirlines({ chain, amount: 1, accounts });
+        const [airline1, airline2, airline3, airline4, airline5, airline6] = airlines.map(name => accounts.get(name)!);
+        const chainHeight = registerBlock.height
+
+        let block = chain.mineBlock([
+            applicationAirlineTx(chain, airline3, "Airline 3" , airline2, airline1.address),  // not whitelisted
+            applicationAirlineTx(chain, airline3, "Airline 3" , airline3, deployer.address),  // ONLY_BY_REGISTERED_AIRLINE
+            applicationAirlineTx(chain, airline1, "Airline 1" , airline2, deployer.address),  // AIRLINE_ALREADY_REGISTERED
+        ]);
+        console.log(block)
+        assertEquals(block.receipts.length, 3);
+        assertEquals(block.height, chainHeight + 1);
+
+        block.receipts[0].result.expectErr().expectUint(1002)
+        block.receipts[1].result.expectErr().expectUint(2004)
+        block.receipts[2].result.expectErr().expectUint(2003)
+    },
+});
+
+Clarinet.test({
     name: "Check double vote rejected",
     async fn(chain: Chain, accounts: Map<string, Account>) {
         const [deployer, airline1, airline2] = ['deployer', 'airline_1', 'airline_2'].map(name => accounts.get(name)!);
