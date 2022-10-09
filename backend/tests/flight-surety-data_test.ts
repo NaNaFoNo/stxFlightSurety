@@ -36,6 +36,9 @@ const readIsWhitelisted = (chain: Chain, deployer: Account) =>
 const hasAirlineState = (chain: Chain, airline: Account, sender: Account, state: number) =>
     chain.callReadOnlyFn(dataContract, "has-airline-state", [principal(airline.address),uint(state)], sender.address);
 
+const getAirline = (chain: Chain, airline: Account, sender: Account) =>
+    chain.callReadOnlyFn(dataContract, "get-airline", [principal(airline.address)], sender.address);
+
 // public functions
 const whitelistPrincipalTx = (deployer: Account, sender: Account) => 
     Tx.contractCall(dataContract,'set-whitelisted',[principal(deployer.address), bool(true)], sender.address);
@@ -92,17 +95,21 @@ Clarinet.test({
 // airlines
 // check if arirline is registered on deployment
 Clarinet.test({
-    name: "Check airline registered on deployment",
+    name: "Check airline registered on deployment 'get-airline'",
     async fn(chain: Chain, accounts: Map<string, Account>) {
         const [deployer, airline1] = ['deployer', 'airline_1'].map(name => accounts.get(name)!);
 
         assertEquals(chain.blockHeight, 1);
 
-        let read = hasAirlineState(chain, airline1, deployer, 2)
-        read.result.expectBool(true);
+        let readState = hasAirlineState(chain, airline1, deployer, 2)
+        let results = getAirline(chain, airline1, deployer)
+        readState.result.expectBool(true);
 
-        read = hasAirlineState(chain, deployer, deployer, 2)
-        read.result.expectBool(false);
+        let resultTuple = results.result.expectSome().expectTuple()
+        resultTuple['airline-id'].expectUint(1)
+        resultTuple['airline-name'].expectAscii("First Airline")
+        resultTuple['airline-state'].expectUint(2)
+        resultTuple['voters'].expectList()
     },
 });
 
@@ -136,13 +143,12 @@ Clarinet.test({
             applicationAirlineTx(chain, airline3, "Airline 3" , airline3, deployer.address),  // ONLY_BY_REGISTERED_AIRLINE
             applicationAirlineTx(chain, airline1, "Airline 1" , airline2, deployer.address),  // AIRLINE_ALREADY_REGISTERED
         ]);
-        console.log(block)
         assertEquals(block.receipts.length, 3);
         assertEquals(block.height, chainHeight + 1);
 
-        block.receipts[0].result.expectErr().expectUint(1002)
-        block.receipts[1].result.expectErr().expectUint(2004)
-        block.receipts[2].result.expectErr().expectUint(2003)
+        block.receipts[0].result.expectErr().expectUint(1002)  // not whitelisted
+        block.receipts[1].result.expectErr().expectUint(2004)  // ONLY_BY_REGISTERED_AIRLINE
+        block.receipts[2].result.expectErr().expectUint(2003)  // AIRLINE_ALREADY_REGISTERED
     },
 });
 
