@@ -83,13 +83,11 @@
       (airlineData (unwrap-panic (map-get? Airlines airline)))
       (voters (get voters airlineData))
       (newVotes (append (list ) voters) )
-      (output 
-        (merge airlineData
-          {
-            voters: (unwrap-panic (as-max-len? (append voters caller) u25)) ,
-          }
-        )
-      )
+      (output (merge airlineData
+        {
+          voters: (unwrap-panic (as-max-len? (append voters caller) u25)) ,
+        }
+      ))
     )
     (asserts! (is-none (index-of voters caller)) ALREADY_VOTED)  ;; Ok
     (map-set Airlines airline output)
@@ -175,14 +173,14 @@
 
 
 
-(define-read-only (get-airline-status (airlineAddress principal))
-  (let 
-    (
-      (status (get airline-state (unwrap! (map-get? Airlines airlineAddress) AIRLINE_NOT_FOUND)))
-    ) 
-    (ok (unwrap! (element-at AIRLINE_STATE status) BAD_AIRLINE_STATUS))
-  )
-)
+;; (define-read-only (get-airline-status (airlineAddress principal))
+;;   (let 
+;;     (
+;;       (status (get airline-state (unwrap! (map-get? Airlines airlineAddress) AIRLINE_NOT_FOUND)))
+;;     ) 
+;;     (ok (unwrap! (element-at AIRLINE_STATE status) BAD_AIRLINE_STATUS))
+;;   )
+;; )
 ;; (contract-call? .flight-surety-data get-airline-status 'ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG)
 
 

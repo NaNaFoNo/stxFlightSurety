@@ -53,7 +53,6 @@ const fundAirlineTx = (chain: Chain, airline: Account, caller: string) =>
     Tx.contractCall(dataContract, "fund-airline", [principal(airline.address)], caller);
 
 
-
 // *** unit tests *** //
 // whitelist app contract
 Clarinet.test({
