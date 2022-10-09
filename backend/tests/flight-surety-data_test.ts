@@ -20,8 +20,8 @@ function registerAirlines({ chain, amount, accounts }: { chain: Chain, amount: n
     let registerBlock: any, i: number
     for(i = 1;amount >= i;i++) {
         registerBlock = chain.mineBlock([
-            applicationAirlineTx(chain, accounts.get(airlines[i])!, `Airline ${i}` , airline1, deployer.address),
-            registerAirlineTx(chain, accounts.get(airlines[i])!, deployer.address)
+            applicationAirlineTx(accounts.get(airlines[i])!, `Airline ${i}` , airline1, deployer.address),
+            registerAirlineTx(accounts.get(airlines[i])!, deployer.address)
         ]);
         registerBlock.receipts[0].result.expectOk().expectTuple();
         registerBlock.receipts[1].result.expectOk().expectBool(true);
@@ -43,13 +43,13 @@ const getAirline = (chain: Chain, airline: Account, sender: Account) =>
 const whitelistPrincipalTx = (deployer: Account, sender: Account) => 
     Tx.contractCall(dataContract,'set-whitelisted',[principal(deployer.address), bool(true)], sender.address);
 
-const applicationAirlineTx = (chain: Chain, airline: Account, airlineName: string , caller: Account, appSender: string) =>
+const applicationAirlineTx = (airline: Account, airlineName: string , caller: Account, appSender: string) =>
     Tx.contractCall(dataContract, "application-airline", [principal(airline.address), some(ascii(airlineName)), principal(caller.address)], appSender );
 
-const registerAirlineTx = (chain: Chain, airline: Account, caller: string) =>
+const registerAirlineTx = (airline: Account, caller: string) =>
     Tx.contractCall(dataContract, "register-airline", [principal(airline.address)], caller);
 
-const fundAirlineTx = (chain: Chain, airline: Account, caller: string) =>
+const fundAirlineTx = (airline: Account, caller: string) =>
     Tx.contractCall(dataContract, "fund-airline", [principal(airline.address)], caller);
 
 
@@ -120,7 +120,7 @@ Clarinet.test({
 
         let block = chain.mineBlock([
             whitelistPrincipalTx(deployer, deployer),
-            applicationAirlineTx(chain, airline2, "Name" , airline1, deployer.address)
+            applicationAirlineTx(airline2, "Name" , airline1, deployer.address)
         ]);
         assertEquals(block.receipts.length, 2);
         assertEquals(block.height, 2);
@@ -138,9 +138,9 @@ Clarinet.test({
         const chainHeight = registerBlock.height
 
         let block = chain.mineBlock([
-            applicationAirlineTx(chain, airline3, "Airline 3" , airline2, airline1.address),  // not whitelisted
-            applicationAirlineTx(chain, airline3, "Airline 3" , airline3, deployer.address),  // ONLY_BY_REGISTERED_AIRLINE
-            applicationAirlineTx(chain, airline1, "Airline 1" , airline2, deployer.address),  // AIRLINE_ALREADY_REGISTERED
+            applicationAirlineTx(airline3, "Airline 3" , airline2, airline1.address),  // not whitelisted
+            applicationAirlineTx(airline3, "Airline 3" , airline3, deployer.address),  // ONLY_BY_REGISTERED_AIRLINE
+            applicationAirlineTx(airline1, "Airline 1" , airline2, deployer.address),  // AIRLINE_ALREADY_REGISTERED
         ]);
         assertEquals(block.receipts.length, 3);
         assertEquals(block.height, chainHeight + 1);
@@ -158,8 +158,8 @@ Clarinet.test({
        
         let block = chain.mineBlock([
             whitelistPrincipalTx(deployer, deployer),
-            applicationAirlineTx(chain, airline2, "" , airline1, deployer.address),
-            applicationAirlineTx(chain, airline2, "" , airline1, deployer.address)
+            applicationAirlineTx(airline2, "" , airline1, deployer.address),
+            applicationAirlineTx(airline2, "" , airline1, deployer.address)
         ]);
         assertEquals(block.receipts.length, 3);
         assertEquals(block.height, 2);
@@ -174,10 +174,10 @@ Clarinet.test({
         const [airline1, airline2, airline3, airline4, airline5, airline6] = airlines.map(name => accounts.get(name)!);
         const chainHeight = registerBlock.height
         let block = chain.mineBlock([
-            applicationAirlineTx(chain, airline6, "" , airline2, deployer.address),
-            applicationAirlineTx(chain, airline6, "" , airline3, deployer.address),
-            applicationAirlineTx(chain, airline6, "" , airline4, deployer.address),
-            applicationAirlineTx(chain, airline6, "" , airline5, deployer.address),
+            applicationAirlineTx(airline6, "" , airline2, deployer.address),
+            applicationAirlineTx(airline6, "" , airline3, deployer.address),
+            applicationAirlineTx(airline6, "" , airline4, deployer.address),
+            applicationAirlineTx(airline6, "" , airline5, deployer.address),
         ]);
         assertEquals(block.receipts.length, 4);
         assertEquals(block.height, chainHeight + 1);
@@ -198,7 +198,7 @@ Clarinet.test({
         
 
         //let block = chain.mineBlock([
-        //    applicationAirlineTx(chain, airline2, "Second airline" , airline2, airline1.address)
+        //    applicationAirlineTx(airline2, "Second airline" , airline2, airline1.address)
         //]);
         //assertEquals(block.receipts.length, 1);
         //assertEquals(block.height, 2);
@@ -219,8 +219,8 @@ Clarinet.test({
 
 
         let block = chain.mineBlock([
-            applicationAirlineTx(chain, airline2, "Name" , airline1, airline1.address),
-            registerAirlineTx(chain, airline2, deployer.address)
+            applicationAirlineTx(airline2, "Name" , airline1, airline1.address),
+            registerAirlineTx(airline2, deployer.address)
         ]);
        
         assertEquals(block.receipts.length, 2);
@@ -243,9 +243,9 @@ Clarinet.test({
 //        let appCaller =  deployer.address.concat('.', appContract)
 //
 //        let block = chain.mineBlock([
-//            applicationAirlineTx(chain, airline2, "Name" , airline1, airline1.address),
-//            registerAirlineTx(chain, airline2, airline1.address),
-//            fundAirlineTx(chain, airline2, airline2.address),
+//            applicationAirlineTx(airline2, "Name" , airline1, airline1.address),
+//            registerAirlineTx(airline2, airline1.address),
+//            fundAirlineTx(airline2, airline2.address),
 //        ]);
 //        //assertEquals(block.receipts.length, 3);
 //        //assertEquals(block.height, 2);
