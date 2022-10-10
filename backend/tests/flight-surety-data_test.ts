@@ -6,6 +6,7 @@ const { uint, principal, bool, ascii, some } = types;
 
 const dataContract = 'flight-surety-data';
 const appContract = 'flight-surety-app';
+const AIRLINE_FUNDING = 1000000;
 
 // amount max 4
 function registerAirlines({ chain, amount, accounts }: { chain: Chain, amount: number, accounts: Map<string, Account>}) {
@@ -49,8 +50,8 @@ const applicationAirlineTx = (airline: Account, airlineName: string , caller: Ac
 const registerAirlineTx = (airline: Account, caller: string) =>
     Tx.contractCall(dataContract, "register-airline", [principal(airline.address)], caller);
 
-const fundAirlineTx = (airline: Account, caller: string) =>
-    Tx.contractCall(dataContract, "fund-airline", [principal(airline.address)], caller);
+const fundAirlineTx = (airline: Account) =>
+    Tx.contractCall(dataContract, "fund-airline", [principal(airline.address)], airline.address);
 
 
 // *** unit tests *** //
@@ -167,6 +168,19 @@ Clarinet.test({
     },
 });
 
+// airline register 
+
+Clarinet.test({
+    name: "Check register-airline",
+    async fn(chain: Chain, accounts: Map<string, Account>) {
+        const { registerBlock, deployer, airlines } = registerAirlines({ chain, amount: 4, accounts });
+        const regAirlinesCount = chain.callReadOnlyFn(dataContract, "get-airlines-count", [], deployer.address);
+
+        registerBlock.receipts[1].result.expectOk().expectBool(true);
+        regAirlinesCount.result.expectUint(5)
+    },
+});
+
 Clarinet.test({
     name: "Check votes counting up",
     async fn(chain: Chain, accounts: Map<string, Account>) {
@@ -185,17 +199,27 @@ Clarinet.test({
         assertEquals(result, {'airline-state': uint(1), votes: uint(4)})
     },
 });
-// airline register 
+
 
 // airline funding
 
 Clarinet.test({
-    name: "Check application-airline",
+    name: "Check fund-airline",
     async fn(chain: Chain, accounts: Map<string, Account>) {
         //const [deployer, airline1, airline2] = ['deployer', 'airline_1', 'airline_2'].map(name => accounts.get(name)!);
-        const { registerBlock } = registerAirlines({ chain, amount: 4, accounts });
+        const { registerBlock, deployer, airlines } = registerAirlines({ chain, amount: 0, accounts });
+        let airline1 = accounts.get(airlines[0])!;
 
-        
+        let block = chain.mineBlock([
+            fundAirlineTx(airline1)
+        ]);
+
+        console.log(block.receipts[0].events);
+        block.receipts[0].events.expectSTXTransferEvent(
+            AIRLINE_FUNDING,
+            airline1.address,
+            deployer.address.concat('.', dataContract),
+        );
 
         //let block = chain.mineBlock([
         //    applicationAirlineTx(airline2, "Second airline" , airline2, airline1.address)
@@ -210,29 +234,7 @@ Clarinet.test({
     },
 });
 
-Clarinet.test({
-    name: "Check register-airline",
-    async fn(chain: Chain, accounts: Map<string, Account>) {
-        let deployer = accounts.get("deployer")!;
-        let airline1 = accounts.get("airline_1")!;
-        let airline2 = accounts.get("airline_2")!;
 
-
-        let block = chain.mineBlock([
-            applicationAirlineTx(airline2, "Name" , airline1, airline1.address),
-            registerAirlineTx(airline2, deployer.address)
-        ]);
-       
-        assertEquals(block.receipts.length, 2);
-        assertEquals(block.height, 2);
-       
-        //console.log(block.receipts[1].events)
-        //block.receipts[0].result.expectErr().expectUint(1001);
-        //
-        //let check = readIsWhitelisted(chain, deployer);
-        //check.result.expectBool(false);
-    },
-});
 
 //Clarinet.test({
 //    name: "Check fund-airline",

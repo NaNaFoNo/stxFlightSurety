@@ -3,3 +3,5 @@
 **/settings/Testnet.toml
 .requirements/
 history.txt
+*.png
+*.css

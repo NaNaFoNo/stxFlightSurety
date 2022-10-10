@@ -152,7 +152,7 @@
 
 (define-public (register-airline (airline principal)) 
   (begin
-    (asserts! (has-airline-state airline u1) AIRLINE_NOT_IN_APPLICATION)  ;; change to votecount?? 
+    (asserts! (has-airline-state airline u1) AIRLINE_NOT_IN_APPLICATION)  
     (var-set authAirlines (- (var-get authAirlines) u1))
     (var-set registeredAirlines (+ (var-get registeredAirlines) u1))
     ;; #[filter(airline)]
@@ -164,8 +164,9 @@
 ;; assert airline is registered
 (define-public (fund-airline (airline principal))
   (begin
-    (try! (stx-transfer? AIRLINE_FUNDING airline CONTRACT_ADDRESS) ) ;; the sender principal has to be current tx-sender
+    (asserts! (has-airline-state airline u2) ONLY_BY_REGISTERED_AIRLINE)
     ;; #[filter(airline)]
+    (try! (stx-transfer? AIRLINE_FUNDING airline CONTRACT_ADDRESS) ) ;; the sender principal has to be current tx-sender
     (ok (map-set Airlines airline (merge (unwrap-panic (map-get? Airlines airline)) {airline-state: u3})))
   )
 )
