@@ -82,7 +82,6 @@
     (
       (airlineData (unwrap-panic (map-get? Airlines airline)))
       (voters (get voters airlineData))
-      (newVotes (append (list ) voters) )
       (output (merge airlineData
         {
           voters: (unwrap-panic (as-max-len? (append voters caller) u25)) ,
