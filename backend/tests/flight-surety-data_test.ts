@@ -112,7 +112,7 @@ Clarinet.test({
         ]);
         assertEquals(block.receipts.length, 1);
         assertEquals(block.height, 2);
-        block.receipts[0].result.expectErr().expectUint(1001);
+        block.receipts[0].result.expectErr().expectUint(2011);
         
         let check = readIsWhitelisted(chain, deployer);
         check.result.expectBool(false);
@@ -172,7 +172,7 @@ Clarinet.test({
         ]);
         assertEquals(block.receipts.length, 3);
         assertEquals(block.height, registerBlock.height + 1);
-        block.receipts[0].result.expectErr().expectUint(1002)  // not whitelisted
+        block.receipts[0].result.expectErr().expectUint(2012)  // not whitelisted
         block.receipts[1].result.expectErr().expectUint(2004)  // ONLY_BY_REGISTERED_AIRLINE
         block.receipts[2].result.expectErr().expectUint(2003)  // AIRLINE_ALREADY_REGISTERED
     },

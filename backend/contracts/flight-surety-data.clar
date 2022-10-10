@@ -5,8 +5,8 @@
 
 ;; error consts
 ;;
-(define-constant ERR_UNAUTHORISED (err u1001))
-(define-constant NOT_WHITELISTED (err u1002))
+(define-constant ERR_UNAUTHORISED (err u2011))
+(define-constant NOT_WHITELISTED (err u2012))
 
 (define-constant AIRLINE_NOT_FOUND (err u2001))
 (define-constant BAD_AIRLINE_STATUS (err u2002))
