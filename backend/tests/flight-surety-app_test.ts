@@ -79,7 +79,7 @@ Clarinet.test({
 Clarinet.test({
     name: "Ensure that registered airlines count is received from data-contract (read-only)",
     async fn(chain: Chain, accounts: Map<string, Account>) {
-        const { deployer} = getAccounts({accounts})
+        const { deployer } = getAccounts({accounts})
         
         let read = registeredAirlineCount(chain, deployer ) 
         read.result.expectUint(1)
@@ -104,13 +104,16 @@ Clarinet.test({
     name: "Ensure that get-airline data is received succesful from data-contract (read-only)",
     async fn(chain: Chain, accounts: Map<string, Account>) {
         const { deployer, airline1 } = getAccounts({accounts})
-      
+        // expect airline data
         let read = getAirline(chain, airline1, deployer)
         let airlineData = read.result.expectSome().expectTuple()
         airlineData['airline-id'].expectUint(1)
         airlineData['airline-name'].expectAscii("First Airline")
         airlineData['airline-state'].expectUint(2)
         airlineData['voters'].expectList()
+        // expect airline data not available (principal not in map)
+        read = getAirline(chain, deployer, deployer)
+        read.result.expectNone()
     },    
 
 });
