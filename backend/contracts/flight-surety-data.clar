@@ -106,7 +106,7 @@
 
 ;; a) no map  b) u0/u1  c) u2/u3   ab= false  c= true
 (define-read-only (has-airline-state (address principal) (minState uint))
-    (> (default-to u0 (get airline-state (map-get? Airlines address))) (- minState u1)) 
+    (> (+ (default-to u0 (get airline-state (map-get? Airlines address))) u1) minState) 
 )
 ;; (contract-call? .flight-surety-data has-airline-state 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5 u2)
 

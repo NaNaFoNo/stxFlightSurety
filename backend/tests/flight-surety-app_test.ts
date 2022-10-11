@@ -92,6 +92,10 @@ Clarinet.test({
         const { deployer, airline1 } = getAccounts({accounts})
         
         let read = hasAirlineState(chain, deployer, airline1, 2) // 2 for registered state
+        read.result.expectBool(true)
+        read = hasAirlineState(chain, deployer, airline1, 3) // 2 for registered state
+        read.result.expectBool(false)
+        read = hasAirlineState(chain, deployer, deployer, 0) // 0 for init or not in map
         read.result.expectBool(true)  
     }, 
 });
