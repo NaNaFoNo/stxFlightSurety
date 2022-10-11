@@ -33,6 +33,10 @@
   (contract-call? .flight-surety-data has-airline-state airline minState)
 )
 
+(define-read-only (get-airline (airline principal)) 
+  (contract-call? .flight-surety-data get-airline airline )
+)
+
 (define-public (whitelist-app-contract) 
   (contract-call? .flight-surety-data set-whitelisted (as-contract tx-sender) true)
 )
