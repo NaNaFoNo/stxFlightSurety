@@ -5,8 +5,6 @@ import { assertEquals } from 'https://deno.land/std@0.90.0/testing/asserts.ts';
 const { uint, principal, bool, ascii, some } = types;
 
 const dataContract = 'flight-surety-data';
-const appContract = 'flight-surety-app';
-const airlines = [ 'airline_1', 'airline_2', 'airline_3', 'airline_4', 'airline_5', 'airline_6']
 const AIRLINE_FUNDING = 1000000;
 
 function getAccounts ({accounts}: {accounts: Map<string, Account>}){
@@ -33,28 +31,23 @@ function whitelistDeployer ({chain, deployer, whitelist}: {chain: Chain, deploye
 
     return { whitelistBlock: block, whitelistedCaller: whitelist};
 }
-// const { whitelistBlock, whitelistedCaller } = whitelistCaller({ chain, Principal, Principal })
 
 // amount max 4
 function registerAirlines({ chain, amount, accounts, caller }: { chain: Chain, amount: number, accounts: Map<string, Account>, caller: Account}) {
-    const addAirlines = ['airline_1', 'airline_2', 'airline_3', 'airline_4', 'airline_5', 'airline_6']
+    const airlines = [ 'airline_1', 'airline_2', 'airline_3', 'airline_4', 'airline_5', 'airline_6']
     let deployer = accounts.get("deployer")!;
     let airline1 = accounts.get(airlines[0])!;
-
-    // const whitlistBlock = chain.mineBlock([
-    //     whitelistPrincipalTx(deployer, deployer),
-    // ]);   
 
     let block: any, i: number
     for(i = 1;amount >= i;i++) {
         block = chain.mineBlock([
-            applicationAirlineTx(accounts.get(addAirlines[i])!, `Airline ${i}` , airline1, caller.address),
-            registerAirlineTx(accounts.get(addAirlines[i])!, caller.address)
+            applicationAirlineTx(accounts.get(airlines[i])!, `Airline ${i}` , airline1, caller.address),
+            registerAirlineTx(accounts.get(airlines[i])!, caller.address)
         ]);
         block.receipts[0].result.expectOk().expectTuple();
         block.receipts[1].result.expectOk().expectBool(true);
     }
-    return { registerBlock: block, deployer, addAirlines};
+    return { registerBlock: block, deployer, airlines};
 }
 
 // read-only functions
@@ -223,20 +216,23 @@ Clarinet.test({
 Clarinet.test({
     name: "Check votes counting up",
     async fn(chain: Chain, accounts: Map<string, Account>) {
-        const { deployer, airline2, airline3, airline4, airline5, airline6 } = getAccounts({accounts})
+        const { deployer, airline1, airline2, airline3, airline4, airline5, airline6 } = getAccounts({accounts})
         const { whitelistedCaller } = whitelistDeployer({ chain, deployer: deployer, whitelist: deployer} )
         const { registerBlock } = registerAirlines({ chain, amount: 4, accounts, caller: whitelistedCaller });
         
+
         let block = chain.mineBlock([
-            applicationAirlineTx(airline6, "" , airline2, deployer.address),
-            applicationAirlineTx(airline6, "" , airline3, deployer.address),
-            applicationAirlineTx(airline6, "" , airline4, deployer.address),
-            applicationAirlineTx(airline6, "" , airline5, deployer.address),
+            applicationAirlineTx(airline6, "" , airline1, deployer.address),  //init to application
+            applicationAirlineTx(airline6, "" , airline2, deployer.address),  // vote
+            applicationAirlineTx(airline6, "" , airline3, deployer.address),  // vote
+            applicationAirlineTx(airline6, "" , airline4, deployer.address),  // vote
+            applicationAirlineTx(airline6, "" , airline5, deployer.address),  // vote
         ]);
-        assertEquals(block.receipts.length, 4);
+        assertEquals(block.receipts.length, 5);
         assertEquals(block.height, registerBlock.height + 1);
-        const result = block.receipts[3].result.expectOk().expectTuple()
-        assertEquals(result, {'airline-state': uint(1), votes: uint(4)})
+        const result = block.receipts[4].result.expectOk().expectTuple()
+        assertEquals(result, {'airline-state': uint(1), votes: uint(5)})
+
     },
 });
 
