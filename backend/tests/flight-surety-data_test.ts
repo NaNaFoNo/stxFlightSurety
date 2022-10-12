@@ -60,6 +60,10 @@ const hasAirlineState = (chain: Chain, airline: Account, sender: Account, state:
 const getAirline = (chain: Chain, airline: Account, sender: Account) =>
     chain.callReadOnlyFn(dataContract, "get-airline", [principal(airline.address)], sender.address);
 
+const getAirlineVotes = (chain: Chain, airline: Account, sender: Account) =>
+    chain.callReadOnlyFn(dataContract, "get-airline-votes", [principal(airline.address)], sender.address);
+
+
 // public functions
 const whitelistPrincipalTx = (deployer: Account, sender: Account) => 
     Tx.contractCall(dataContract,'set-whitelisted',[principal(deployer.address), bool(true)], sender.address);
@@ -70,6 +74,10 @@ const applicationAirlineTx = (airline: Account, airlineName: string , caller: Ac
 const registerAirlineTx = (airline: Account, caller: string) =>
     Tx.contractCall(dataContract, "register-airline", [principal(airline.address)], caller);
 
+const addAirlineTx = (airline: Account, airlineName: string , caller: Account, status: number, appSender: string) =>
+    Tx.contractCall(dataContract, "add-airline-data", [principal(airline.address), ascii(airlineName), principal(caller.address), uint(status)], appSender );
+
+    
 const fundAirlineTx = (airline: Account) =>
     Tx.contractCall(dataContract, "fund-airline", [principal(airline.address)], airline.address);
 
@@ -233,6 +241,9 @@ Clarinet.test({
         const result = block.receipts[4].result.expectOk().expectTuple()
         assertEquals(result, {'airline-state': uint(1), votes: uint(5)})
 
+        let read = getAirlineVotes(chain, airline6, deployer)
+        console.log(read)
+
     },
 });
 
@@ -259,6 +270,26 @@ Clarinet.test({
             deployer.address.concat('.', dataContract),
         );
 
+    },
+});
+
+Clarinet.test({
+    name: "Check further tests",
+    async fn(chain: Chain, accounts: Map<string, Account>) {
+        const { deployer, airline1, airline2, airline3, airline4, airline5, airline6 } = getAccounts({accounts})
+        const { whitelistedCaller } = whitelistDeployer({ chain, deployer: deployer, whitelist: deployer} )
+
+        const block = chain.mineBlock([
+            addAirlineTx(airline2, "Airline 2", airline1, 1, whitelistedCaller.address),
+            addAirlineTx(airline2, "Airline 2", airline3, 1, whitelistedCaller.address),
+            addAirlineTx(airline3, "Airline 3", airline1, 2, whitelistedCaller.address),
+            addAirlineTx(airline2, "Airline 2", airline3, 1, whitelistedCaller.address),
+            addAirlineTx(airline4, "Airline 4", airline1, 2, whitelistedCaller.address),
+            addAirlineTx(airline2, "Airline 2", airline4, 1, airline5.address),
+        ]);
+
+        let read = getAirlineVotes(chain, airline2, deployer)
+        console.log(block.receipts)
     },
 });
 

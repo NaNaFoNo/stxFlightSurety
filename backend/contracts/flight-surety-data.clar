@@ -129,7 +129,9 @@
   (map-get? Airlines airline)
 )
 ;; (contract-call? .flight-surety-data get-airline 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5)
-
+(define-read-only (get-airline-votes (airline principal))
+      (len (default-to (list ) (get voters (map-get? Airlines airline))))
+)
 
 ;; assert airline is not registered / funded
 (define-public (application-airline (airline principal) (airlineName (optional (string-ascii 30))) (caller principal)) 
@@ -152,12 +154,44 @@
 (define-public (register-airline (airline principal)) 
   (begin
     (asserts! (has-airline-state airline u1) AIRLINE_NOT_IN_APPLICATION)
-    (asserts! (is-whitelisted tx-sender) NOT_WHITELISTED)  
+    (asserts! (is-whitelisted contract-caller) NOT_WHITELISTED)  
     (var-set authAirlines (- (var-get authAirlines) u1))
     (var-set registeredAirlines (+ (var-get registeredAirlines) u1))
     ;; #[filter(airline)]
-    (ok (map-set Airlines airline (merge (unwrap-panic (map-get? Airlines airline)) {airline-state: u2}))))
+    (ok (map-set Airlines airline (merge (unwrap-panic (map-get? Airlines airline)) {airline-state: u2})))
   )
+)
+
+(define-public (add-airline-data (airline principal) (airlineName (string-ascii 30)) (caller principal) (status uint)) 
+  (let 
+    (
+      (airlineData (map-get? Airlines airline))
+      (id (if (is-none airlineData) 
+          (+ (var-get idCounter) u1) 
+          (unwrap-panic (get airline-id airlineData))
+      ))
+      (votersList (if (is-none airlineData) 
+          (list ) 
+          (unwrap-panic (get voters airlineData))
+      ))
+    )
+    (asserts! (is-whitelisted contract-caller) NOT_WHITELISTED) ;; contract-caller instead of tx-sender
+    (asserts! (has-airline-state caller u2) ONLY_BY_REGISTERED_AIRLINE)
+    (asserts! (is-eq (has-airline-state airline u2) false) AIRLINE_ALREADY_REGISTERED)
+    (asserts! (is-none (index-of votersList caller)) ALREADY_VOTED)
+    (map-set Airlines airline {
+      airline-id: id,
+      airline-state: status,
+      airline-name: airlineName,
+      voters:  (unwrap-panic (as-max-len? (append votersList caller) u25)),
+    })
+
+    (if (is-none airlineData) (var-set idCounter id) false)
+    (if (is-eq status u2) (var-set registeredAirlines (+ (var-get registeredAirlines) u1)) false)
+    
+    (ok {airline-id: id, airline-state: status, votes: (len votersList), reg-airlines: (var-get registeredAirlines) })
+  )
+)
   
 ;; (contract-call? .flight-surety-data register-airline 'ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG)
 

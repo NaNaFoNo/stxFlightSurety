@@ -34,11 +34,25 @@
 )
 
 (define-read-only (get-airline (airline principal)) 
-  (contract-call? .flight-surety-data get-airline airline )
+  (contract-call? .flight-surety-data get-airline airline)
 )
 
 (define-public (whitelist-app-contract) 
   (contract-call? .flight-surety-data set-whitelisted (as-contract tx-sender) true)
+)
+
+(define-public (add-airline (airline principal) (airlineName (string-ascii 30)) (caller principal)) 
+  (let 
+    (
+      (registeredAirlines (registered-airline-count))
+      (airlineVotes  (+ (len (default-to (list ) (get voters (get-airline airline)))) u1) )
+      (state (if (>= airlineVotes (+ (/ registeredAirlines u2) (mod registeredAirlines u2))) u2 u1))
+    )
+    
+    (as-contract (contract-call? .flight-surety-data add-airline-data airline airlineName caller state ))
+    
+    
+  )
 )
 ;; (contract-call? .flight-surety-app registered-airline-count )
 

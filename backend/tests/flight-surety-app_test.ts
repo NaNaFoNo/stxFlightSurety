@@ -15,6 +15,24 @@ function getAccounts ({accounts}: {accounts: Map<string, Account>}){
     return { deployer, airline1, airline2, airline3, airline4, airline5, airline6 };
 }
 
+function whitelistAppContract ({chain, deployer}: {chain: Chain, deployer: Account}) {
+   
+    const height = chain.blockHeight
+    const block = chain.mineBlock([
+        whitelistAppContractTx(deployer),
+    ]);
+    // check if block with tx is mined
+    assertEquals(block.receipts.length, 1);
+    assertEquals(block.height, height + 1);
+    // check if whitelist tx was successfull
+    block.receipts[0].result.expectOk().expectBool(true);
+    // check read-only "is-whitelisted" equals true
+    let check = hasDataAccess(chain, deployer);
+    check.result.expectBool(true);
+
+    return { whitelistBlock: block };
+}
+
 const registeredAirlineCount = (chain: Chain, deployer: Account) =>
     chain.callReadOnlyFn(appContract, "registered-airline-count", [], deployer.address);  // principal(deployer.address.concat('.', appContract))
 
@@ -27,10 +45,12 @@ const getAirline = (chain: Chain, airline: Account, deployer: Account) =>
 const hasDataAccess = (chain: Chain, deployer: Account) =>
     chain.callReadOnlyFn(appContract, "has-data-access", [], deployer.address);  // principal(deployer.address.concat('.', appContract))
     
-const whitelistAppContract = (deployer: Account) =>
+const whitelistAppContractTx = (deployer: Account) =>
     Tx.contractCall(appContract, "whitelist-app-contract", [], deployer.address);  // principal(deployer.address.concat('.', appContract))
 
-    
+const addAirlineTx = (airline: Account, airlineName: string , caller: Account, appSender: string) =>
+    Tx.contractCall(appContract, "add-airline", [principal(airline.address), ascii(airlineName), principal(caller.address)], appSender );
+
 
 
 
@@ -43,7 +63,7 @@ Clarinet.test({
         read.result.expectBool(false)
 
         let block = chain.mineBlock([
-            whitelistAppContract(deployer),
+            whitelistAppContractTx(deployer),
         ]);
         // check successful block mined with correct result
         assertEquals(block.receipts.length, 1);
@@ -64,7 +84,7 @@ Clarinet.test({
         read.result.expectBool(false)
 
         let block = chain.mineBlock([
-            whitelistAppContract(airline1),
+            whitelistAppContractTx(airline1),
         ]);
         // check successful block mined with correct result
         assertEquals(block.receipts.length, 1);
@@ -114,6 +134,25 @@ Clarinet.test({
         // expect airline data not available (principal not in map)
         read = getAirline(chain, deployer, deployer)
         read.result.expectNone()
+    },    
+
+});
+
+Clarinet.test({
+    name: "WHITELIST FCT",
+    async fn(chain: Chain, accounts: Map<string, Account>) {
+        const { deployer, airline1, airline2, airline3, airline4, airline5, airline6 } = getAccounts({accounts})
+        const { whitelistBlock } = whitelistAppContract({ chain, deployer: deployer} )
+        
+        
+        let block = chain.mineBlock([
+            addAirlineTx(airline2, "Airline 2", airline1, deployer.address ),
+            addAirlineTx(airline3, "Airline 3", airline1, deployer.address ),
+            addAirlineTx(airline4, "Airline 4", airline1, deployer.address ),
+            addAirlineTx(airline4, "Airline 4", airline1, deployer.address ),
+            addAirlineTx(airline4, "Airline 4", airline2, deployer.address ),
+        ]);
+        console.log(block)
     },    
 
 });
