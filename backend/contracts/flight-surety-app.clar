@@ -3,6 +3,8 @@
 ;; <add a description here>
 
 
+;; error consts
+;;
 
 (define-constant ERR_CONTRACT_PAUSED (err u3010))
 (define-constant ERR_UNAUTHORISED (err u3011))
@@ -14,15 +16,16 @@
 (define-constant AIRLINE_NOT_IN_APPLICATION (err u3005))
 (define-constant AIRLINE_NAME_NOT_PROVIDED (err u3006))
 (define-constant ALREADY_VOTED (err u3007))
+
 ;; constants
 ;;
-(define-constant CONTRACT_OWNER tx-sender)
-;;(define-constant contract-data 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.flight-surety-data)
-;;(define-constant test-data ".flight-surety-data")
 
-;;(define-data-var data-contract principal 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.flight-surety-data)
+(define-constant CONTRACT_OWNER tx-sender)
 (define-data-var operational bool true)
 
+;;(define-constant contract-data 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.flight-surety-data)
+;;(define-constant test-data ".flight-surety-data")
+;;(define-data-var data-contract principal 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.flight-surety-data)
 
 ;; contract authorizations
 ;;
@@ -61,9 +64,10 @@
   (contract-call? .flight-surety-data get-airline airline)
 )
 
-(define-read-only (has-airline-state (airline principal) (minState uint)) ;;; Keep or make own fct in app 
-  (contract-call? .flight-surety-data has-airline-state airline minState)
-)
+;;; **** has airline state removed from data cotract ---> todo private in app contract
+;; (define-read-only (has-airline-state (airline principal) (minState uint)) ;;; Keep or make own fct in app 
+;;   (contract-call? .flight-surety-data has-airline-state airline minState)
+;; )
 
 
 

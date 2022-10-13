@@ -2,6 +2,7 @@
 **/settings/Mainnet.toml
 **/settings/Testnet.toml
 **/contracts/obsolete.clar
+**/tests/obsolete.ts
 .requirements/
 history.txt
 *.png

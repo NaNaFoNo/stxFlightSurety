@@ -36,9 +36,11 @@ function whitelistAppContract ({chain, deployer}: {chain: Chain, deployer: Accou
 const registeredAirlineCount = (chain: Chain, deployer: Account) =>
     chain.callReadOnlyFn(appContract, "registered-airline-count", [], deployer.address);  // principal(deployer.address.concat('.', appContract))
 
-const hasAirlineState = (chain: Chain, deployer: Account, airline: Account, minState: number) =>
-    chain.callReadOnlyFn(appContract, "has-airline-state", [principal(airline.address), uint(minState)], deployer.address);  // principal(deployer.address.concat('.', appContract))
 
+    // **** removed from data --->  todo in app 
+/* const hasAirlineState = (chain: Chain, deployer: Account, airline: Account, minState: number) =>
+    chain.callReadOnlyFn(appContract, "has-airline-state", [principal(airline.address), uint(minState)], deployer.address);  // principal(deployer.address.concat('.', appContract))
+ */
 const getAirline = (chain: Chain, airline: Account, deployer: Account) =>
     chain.callReadOnlyFn(appContract, "get-airline", [principal(airline.address)], deployer.address);
 
@@ -106,7 +108,8 @@ Clarinet.test({
     },    
 });
 
-Clarinet.test({
+// **** has airline removed from data contract --> todo in app contract
+/* Clarinet.test({
     name: "Ensure that has-airline-state is received correctly from data-contract (read-only)",
     async fn(chain: Chain, accounts: Map<string, Account>) {
         const { deployer, airline1 } = getAccounts({accounts})
@@ -118,7 +121,7 @@ Clarinet.test({
         read = hasAirlineState(chain, deployer, deployer, 0) // 0 for init or not in map
         read.result.expectBool(true)  
     }, 
-});
+}); */
 
 Clarinet.test({
     name: "Ensure that get-airline data is received succesful from data-contract (read-only)",
@@ -153,7 +156,7 @@ Clarinet.test({
             addAirlineTx(airline4, "Airline 4", airline1, deployer.address ),
             addAirlineTx(airline4, "Airline 4", airline2, deployer.address ),
         ]);
-        console.log(block)
+        // console.log(block)
     },    
 
 });
