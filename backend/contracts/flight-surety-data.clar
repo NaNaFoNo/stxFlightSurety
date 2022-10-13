@@ -3,7 +3,7 @@
 ;; <add a description here>
 ;;(impl-trait .data-trait.data-storage-trait)
 
-;; error consts
+;; error consts   ;;;********* mainly handled by app, keep only data related no logic
 ;;
 (define-constant ERR_UNAUTHORISED (err u2011))
 (define-constant NOT_WHITELISTED (err u2012))
@@ -20,8 +20,8 @@
 ;;
 (define-constant CONTRACT_OWNER tx-sender)
 (define-constant CONTRACT_ADDRESS (as-contract tx-sender))
-(define-constant AIRLINE_FUNDING u1000000)
-(define-constant AIRLINE_STATE 
+(define-constant AIRLINE_FUNDING u1000000)  ;; move to app --> logic
+(define-constant AIRLINE_STATE ;; move to app --> logic
   (list "Init" "Application" "Registered" "Funded")
 )
 
@@ -43,8 +43,8 @@
 )
 
 ;; verify if necessary
-(define-map RegisteredAirlines { airline-id: uint } { airline: principal })
-(define-map VotingAirlines { airline-id: uint } { airline: principal, voters:  (list 25 principal) ,active: bool })
+(define-map RegisteredAirlines { airline-id: uint } { airline: principal })   ;; < implement , could be useful
+
 
 ;; init first airline
 (map-set Airlines 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5
@@ -63,7 +63,7 @@
 ;;
 
 
-(define-private (register-airline-init (airline principal) (airlineName (optional (string-ascii 40))) (caller principal)) 
+(define-private (register-airline-init (airline principal) (airlineName (optional (string-ascii 40))) (caller principal))  ;; obsolete 
   (begin
     (map-set Airlines airline {
       airline-id: (+ (var-get idCounter) u1),
@@ -77,7 +77,7 @@
   )
 )
 
-(define-private (register-airline-vote (airline principal) (caller principal)) 
+(define-private (register-airline-vote (airline principal) (caller principal))     ;; obsolete 
   (let 
     (
       (airlineData (unwrap-panic (map-get? Airlines airline)))
@@ -105,7 +105,7 @@
 ;; (contract-call? .flight-surety-data is-whitelisted 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM)
 
 ;; a) no map  b) u0/u1  c) u2/u3   ab= false  c= true
-(define-read-only (has-airline-state (address principal) (minState uint))
+(define-read-only (has-airline-state (address principal) (minState uint))   ;; possible move to app contract
     (> (+ (default-to u0 (get airline-state (map-get? Airlines address))) u1) minState) 
 )
 ;; (contract-call? .flight-surety-data has-airline-state 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5 u2)
@@ -134,7 +134,7 @@
 )
 
 ;; assert airline is not registered / funded
-(define-public (application-airline (airline principal) (airlineName (optional (string-ascii 30))) (caller principal)) 
+(define-public (application-airline (airline principal) (airlineName (optional (string-ascii 30))) (caller principal))   ;;; obsolete
   (let
     (
       (airlineState (get airline-state (map-get? Airlines airline)))
@@ -149,9 +149,8 @@
     )
   )
 )
-;; (contract-call? .flight-surety-data application-airline 'ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG "Airline Name" 'ST2REHHS5J3CERCRBEPMGH7921Q6PYKAADT7JP2VB)
 
-(define-public (register-airline (airline principal)) 
+(define-public (register-airline (airline principal))    ;; obsolete
   (begin
     (asserts! (has-airline-state airline u1) AIRLINE_NOT_IN_APPLICATION)
     (asserts! (is-whitelisted contract-caller) NOT_WHITELISTED)  
@@ -205,42 +204,3 @@
   )
 )
 ;; (contract-call? .flight-surety-data fund-airline 'ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG)
-
-
-
-;; (define-read-only (get-airline-status (airlineAddress principal))
-;;   (let 
-;;     (
-;;       (status (get airline-state (unwrap! (map-get? Airlines airlineAddress) AIRLINE_NOT_FOUND)))
-;;     ) 
-;;     (ok (unwrap! (element-at AIRLINE_STATE status) BAD_AIRLINE_STATUS))
-;;   )
-;; )
-;; (contract-call? .flight-surety-data get-airline-status 'ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG)
-
-
-
-
-
-
-  
-
-;;(contract-call? .flight-surety-data get-airline-status 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5)
-;;(define-public (check-connection (sender principal))
-;;  (begin
-;;    (asserts! (is-whitelisted sender) not-whitelisted)
-;;    (ok {sender: tx-sender, contract: (as-contract tx-sender)})
-;;  )
-;;)
-;;
-;;(define-public (count) 
-;;  (let 
-;;    (
-;;      (state (+ (var-get number) u1))
-;;    )
-;;    (var-set number state)
-;;    (ok state)
-;;  )
-;;)
-
-

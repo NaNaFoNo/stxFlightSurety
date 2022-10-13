@@ -77,7 +77,6 @@ const registerAirlineTx = (airline: Account, caller: string) =>
 const addAirlineTx = (airline: Account, airlineName: string , caller: Account, status: number, appSender: string) =>
     Tx.contractCall(dataContract, "add-airline-data", [principal(airline.address), ascii(airlineName), principal(caller.address), uint(status)], appSender );
 
-    
 const fundAirlineTx = (airline: Account) =>
     Tx.contractCall(dataContract, "fund-airline", [principal(airline.address)], airline.address);
 
@@ -85,7 +84,7 @@ const fundAirlineTx = (airline: Account) =>
 // *** unit tests *** //
 // whitelist app contract
 Clarinet.test({
-    name: "Check if whitelisting of a principal is working",
+    name: "Check if whitelisting is working",
     async fn(chain: Chain, accounts: Map<string, Account>) {
         const { deployer } = getAccounts({accounts})
         // check not whitelisted
@@ -106,7 +105,7 @@ Clarinet.test({
 });
 
 Clarinet.test({
-    name: "Check if whitelisting doesn't work for not contract owner principals",
+    name: "Check if whitelisting doesn't work for other principals than contract owner",
     async fn(chain: Chain, accounts: Map<string, Account>) {
         const { deployer, airline1 } = getAccounts({accounts})
         let block = chain.mineBlock([
@@ -125,7 +124,7 @@ Clarinet.test({
 // airlines
 // check if arirline is registered on deployment
 Clarinet.test({
-    name: "Check airline registered on deployment 'get-airline'",
+    name: "Check airline registered on deployment and read-only 'get-airline'",
     async fn(chain: Chain, accounts: Map<string, Account>) {
         const { deployer, airline1 } = getAccounts({accounts})
 
@@ -146,7 +145,7 @@ Clarinet.test({
 
 // airline to application
 Clarinet.test({
-    name: "Check registered airline can add new airline application (private register-airline-init)",
+    name: "Check registered airline can add new airline application (private register-airline-init)", // to app contract
     async fn(chain: Chain, accounts: Map<string, Account>) {
         const { deployer, airline1, airline2} = getAccounts({accounts})
         const { whitelistBlock, whitelistedCaller } = whitelistDeployer({ chain, deployer: deployer, whitelist: deployer} )
@@ -164,7 +163,7 @@ Clarinet.test({
 });
 
 Clarinet.test({
-    name: "Check application-airline asserts! are working",
+    name: "Check application-airline asserts! are working", // to app
     async fn(chain: Chain, accounts: Map<string, Account>) {
         const { deployer, airline1, airline2, airline3 } = getAccounts({accounts})
         const { whitelistedCaller } = whitelistDeployer({ chain, deployer: deployer, whitelist: deployer} )
@@ -186,7 +185,7 @@ Clarinet.test({
 });
 
 Clarinet.test({
-    name: "Check double vote rejected",
+    name: "Check double vote rejected", // to app
     async fn(chain: Chain, accounts: Map<string, Account>) {
         const { deployer, airline1, airline2 } = getAccounts({accounts})
         const { whitelistBlock, whitelistedCaller } = whitelistDeployer({ chain, deployer: deployer, whitelist: deployer} )
@@ -209,7 +208,7 @@ Clarinet.test({
 // airline register 
 
 Clarinet.test({
-    name: "Check get-airlines-count, registered Airlines",
+    name: "Check get-airlines-count, registered Airlines",  // ??
     async fn(chain: Chain, accounts: Map<string, Account>) {
         const { deployer } = getAccounts({accounts})
         const { whitelistedCaller } = whitelistDeployer({ chain, deployer: deployer, whitelist: deployer} )
@@ -222,7 +221,7 @@ Clarinet.test({
 });
 
 Clarinet.test({
-    name: "Check votes counting up",
+    name: "Check votes counting up", // to app
     async fn(chain: Chain, accounts: Map<string, Account>) {
         const { deployer, airline1, airline2, airline3, airline4, airline5, airline6 } = getAccounts({accounts})
         const { whitelistedCaller } = whitelistDeployer({ chain, deployer: deployer, whitelist: deployer} )
@@ -274,7 +273,7 @@ Clarinet.test({
 });
 
 Clarinet.test({
-    name: "Check further tests",
+    name: "Check further tests",  // add airline data + asserts
     async fn(chain: Chain, accounts: Map<string, Account>) {
         const { deployer, airline1, airline2, airline3, airline4, airline5, airline6 } = getAccounts({accounts})
         const { whitelistedCaller } = whitelistDeployer({ chain, deployer: deployer, whitelist: deployer} )

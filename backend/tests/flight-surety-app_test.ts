@@ -89,7 +89,7 @@ Clarinet.test({
         // check successful block mined with correct result
         assertEquals(block.receipts.length, 1);
         assertEquals(block.height, 2);
-        block.receipts[0].result.expectErr().expectUint(2011);
+        block.receipts[0].result.expectErr().expectUint(3011);
         // read whitelisting after tx, expect true
         read = hasDataAccess(chain, deployer)
         read.result.expectBool(false)
@@ -126,6 +126,7 @@ Clarinet.test({
         const { deployer, airline1 } = getAccounts({accounts})
         // expect airline data
         let read = getAirline(chain, airline1, deployer)
+        console.log(read)
         let airlineData = read.result.expectSome().expectTuple()
         airlineData['airline-id'].expectUint(1)
         airlineData['airline-name'].expectAscii("First Airline")
