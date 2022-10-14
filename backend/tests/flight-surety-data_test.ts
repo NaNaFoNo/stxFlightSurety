@@ -222,7 +222,7 @@ Clarinet.test({
             addAirlineTx(airline2, "Airline 2", airline1, 1, airline2),  // adding airline2 with not whitelisted caller
             addAirlineTx(airline1, "Airline 1", airline1, 1, airline2),  // updating airline1 with not whitelisted caller
         ]);
-
+        
         block.receipts[0].result.expectErr().expectUint(2012)
         block.receipts[1].result.expectErr().expectUint(2012)   
     },

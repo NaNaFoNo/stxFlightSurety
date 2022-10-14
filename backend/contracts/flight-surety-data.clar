@@ -57,6 +57,16 @@
 (var-set registeredAirlines u1)
 (var-set idCounter u1)
 
+;; private functions
+;;
+
+(define-private (register (airline principal) (id uint))
+  (begin 
+    (map-set RegisteredAirlines id airline)
+    (var-set registeredAirlines (+ (var-get registeredAirlines) u1))
+  )
+)
+
 ;; public functions
 ;;
 
@@ -86,7 +96,7 @@
 )
 ;; (contract-call? .flight-surety-data get-airline 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5)
 ;;(define-read-only (get-airline-votes (airline principal))   ;;; move to logic derived out of get ariline
-;;      (len (default-to (list ) (get voters (map-get? Airlines airline))))
+;;      (len (default-to (list ) (get voters (maauregisteredthp-get? Airlines airline))))
 ;;)
 
 (define-public (add-airline-data (airline principal) (airlineName (string-ascii 30)) (caller principal) (status uint)) 
@@ -114,9 +124,8 @@
       voters:  (unwrap-panic (as-max-len? voteList u25)),
     })
 
-    (if (is-none airlineData) (var-set idCounter id) false)    
-    (if (is-eq status u2) (map-set RegisteredAirlines id airline) false) ;;; todo combine to private
-    (if (is-eq status u2) (var-set registeredAirlines (+ (var-get registeredAirlines) u1)) false)
+    (if (is-none airlineData) (var-set idCounter id) false)
+    (if (is-eq status u2) (register airline id) false) 
     
     (ok {airline-id: id, airline-state: status, votes: (len voteList), reg-airlines: (var-get registeredAirlines) })
   )
