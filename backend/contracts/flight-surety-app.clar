@@ -53,8 +53,27 @@
 
 ;; airline functions
 ;;
+(define-private (has-airline-state (airline principal) (state uint)) 
+  (is-eq (default-to u0 (get airline-state (get-airline airline))) state)
+)
 
+(define-private (is-registered (airline principal)) 
+  (>= (default-to u0 (get airline-state (get-airline airline))) u2)
+)
 
+(define-private (has-already-voted (airline principal)) 
+  (is-none (index-of (default-to (list ) (get voters (get-airline airline))) airline))
+)
+
+(define-private (voting-consensus (airline principal)) 
+  (let 
+    (
+      (registeredAirlines (registered-airline-count))
+      (airlineVotes  (+ (len (default-to (list ) (get voters (get-airline airline)))) u1) )
+    ) 
+    (if (>= airlineVotes (+ (/ registeredAirlines u2) (mod registeredAirlines u2))) u2 u1)
+  )
+)
 
 (define-read-only (registered-airline-count)  ;; to airline count
   (contract-call? .flight-surety-data get-airlines-count)
@@ -72,16 +91,13 @@
 
 
 (define-public (add-airline (airline principal) (airlineName (string-ascii 30)) (caller principal)) 
-  (let 
-    (
-      (registeredAirlines (registered-airline-count))
-      (airlineVotes  (+ (len (default-to (list ) (get voters (get-airline airline)))) u1) )     
-      (state (if (>= airlineVotes (+ (/ registeredAirlines u2) (mod registeredAirlines u2))) u2 u1))
-    )
+  (begin
     (asserts! (is-operational) ERR_CONTRACT_PAUSED)
+    (asserts! (is-registered caller) ONLY_BY_REGISTERED_AIRLINE)
+    (asserts! (not (is-registered airline)) AIRLINE_ALREADY_REGISTERED) 
+    (asserts! (has-already-voted caller) ALREADY_VOTED)
 
-    (as-contract (contract-call? .flight-surety-data add-airline-data airline airlineName caller state ))
-    
+    (as-contract (contract-call? .flight-surety-data add-airline-data airline airlineName caller (voting-consensus airline)))
   )
 )
 ;; (contract-call? .flight-surety-app registered-airline-count )

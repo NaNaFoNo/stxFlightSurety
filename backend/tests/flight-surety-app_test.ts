@@ -44,6 +44,9 @@ const registeredAirlineCount = (chain: Chain, deployer: Account) =>
 const getAirline = (chain: Chain, airline: Account, deployer: Account) =>
     chain.callReadOnlyFn(appContract, "get-airline", [principal(airline.address)], deployer.address);
 
+const hasAirlineState = (chain: Chain, airline: Account, state: number, deployer: Account) =>
+    chain.callReadOnlyFn(appContract, "has-airline-state", [principal(airline.address), uint(state)], deployer.address)
+
 const hasDataAccess = (chain: Chain, deployer: Account) =>
     chain.callReadOnlyFn(appContract, "has-data-access", [], deployer.address);  // principal(deployer.address.concat('.', appContract))
     
@@ -108,6 +111,16 @@ Clarinet.test({
     },    
 });
 
+Clarinet.test({
+    name: "Ensure that registered airlines count is received from data-contract (read-only)",
+    async fn(chain: Chain, accounts: Map<string, Account>) {
+        const { deployer, airline2 } = getAccounts({accounts})
+        
+        /* let read = hasAirlineState(chain, airline2, 0, deployer ) 
+        console.log(read) */
+    },    
+});
+
 // **** has airline removed from data contract --> todo in app contract
 /* Clarinet.test({
     name: "Ensure that has-airline-state is received correctly from data-contract (read-only)",
@@ -129,7 +142,6 @@ Clarinet.test({
         const { deployer, airline1 } = getAccounts({accounts})
         // expect airline data
         let read = getAirline(chain, airline1, deployer)
-        console.log(read)
         let airlineData = read.result.expectSome().expectTuple()
         airlineData['airline-id'].expectUint(1)
         airlineData['airline-name'].expectAscii("First Airline")
@@ -150,13 +162,13 @@ Clarinet.test({
         
         
         let block = chain.mineBlock([
-            addAirlineTx(airline2, "Airline 2", airline1, deployer.address ),
+            addAirlineTx(airline2, "Airline 2", airline2, deployer.address ),
             addAirlineTx(airline3, "Airline 3", airline1, deployer.address ),
             addAirlineTx(airline4, "Airline 4", airline1, deployer.address ),
             addAirlineTx(airline4, "Airline 4", airline1, deployer.address ),
             addAirlineTx(airline4, "Airline 4", airline2, deployer.address ),
         ]);
-        // console.log(block)
+        console.log(block)
     },    
 
 });
