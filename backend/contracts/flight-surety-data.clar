@@ -112,10 +112,7 @@
           (append (unwrap-panic (get voters airlineData)) caller)
       ))
     )
-    (asserts! (is-whitelisted contract-caller) NOT_WHITELISTED) ;; contract-caller instead of tx-sender
-    ;;(asserts! (has-airline-state caller u2) ONLY_BY_REGISTERED_AIRLINE)    ;;;; move asserts to app/logic
-    ;;(asserts! (is-eq (has-airline-state airline u2) false) AIRLINE_ALREADY_REGISTERED)
-    ;;(asserts! (is-none (index-of votersList caller)) ALREADY_VOTED)
+    (asserts! (is-whitelisted contract-caller) NOT_WHITELISTED)
     ;; #[filter(airline, airlineName, caller, status)]
     (map-set Airlines airline {
       airline-id: id,
