@@ -8,22 +8,10 @@
 (define-constant ERR_UNAUTHORISED (err u2011))
 (define-constant NOT_WHITELISTED (err u2012))
 
-(define-constant AIRLINE_NOT_FOUND (err u2001))
-(define-constant BAD_AIRLINE_STATUS (err u2002))
-(define-constant AIRLINE_ALREADY_REGISTERED (err u2003))
-(define-constant ONLY_BY_REGISTERED_AIRLINE (err u2004))
-(define-constant AIRLINE_NOT_IN_APPLICATION (err u2005))
-(define-constant AIRLINE_NAME_NOT_PROVIDED (err u2006))
-(define-constant ALREADY_VOTED (err u2007))
-
 ;; constants
 ;;
 (define-constant CONTRACT_OWNER tx-sender)
 (define-constant CONTRACT_ADDRESS (as-contract tx-sender))
-(define-constant AIRLINE_FUNDING u1000000)  ;; move to app --> logic
-(define-constant AIRLINE_STATE ;; move to app --> logic
-  (list "Init" "Application" "Registered" "Funded")
-)
 
 ;; data maps and vars
 ;;
@@ -67,6 +55,10 @@
   )
 )
 
+(define-private (set-airline-state (airline principal) (state uint))
+  (map-set Airlines airline (merge (unwrap-panic (map-get? Airlines airline)) {airline-state: state}))
+)
+
 ;; public functions
 ;;
 
@@ -94,10 +86,6 @@
 (define-read-only (get-airline (airline principal)) 
   (map-get? Airlines airline)
 )
-;; (contract-call? .flight-surety-data get-airline 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5)
-;;(define-read-only (get-airline-votes (airline principal))   ;;; move to logic derived out of get ariline
-;;      (len (default-to (list ) (get voters (maauregisteredthp-get? Airlines airline))))
-;;)
 
 (define-public (add-airline-data (airline principal) (airlineName (string-ascii 30)) (caller principal) (status uint)) 
   (let 
@@ -129,12 +117,9 @@
 )
 
 ;; assert airline is registered
-(define-public (fund-airline (airline principal))
+(define-public (funded-airline-state (airline principal))
   (begin
-    ;; (asserts! (has-airline-state airline u2) ONLY_BY_REGISTERED_AIRLINE)   ;;; move to app/logic
-    ;; #[filter(airline)]
-    (try! (stx-transfer? AIRLINE_FUNDING airline CONTRACT_ADDRESS) ) ;; assume to call transaction out of app contract !!!!!
-    (ok (map-set Airlines airline (merge (unwrap-panic (map-get? Airlines airline)) {airline-state: u3})))
+    (asserts! (is-whitelisted contract-caller) NOT_WHITELISTED)
+    (ok (set-airline-state airline u3))
   )
 )
-;; (contract-call? .flight-surety-data fund-airline 'ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG)

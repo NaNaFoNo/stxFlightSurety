@@ -44,10 +44,6 @@ const getAirline = (chain: Chain, airline: Account, sender: Account) =>
 const getAirlinesCount = (chain: Chain, sender: Account) =>
     chain.callReadOnlyFn(dataContract, "get-airlines-count", [], sender.address);
 
-// const getAirlineVotes = (chain: Chain, airline: Account, sender: Account) =>
-//     chain.callReadOnlyFn(dataContract, "get-airline-votes", [principal(airline.address)], sender.address);
-
-
 // public functions
 const whitelistPrincipalTx = (deployer: Account, sender: Account) => 
     Tx.contractCall(dataContract,'set-whitelisted',[principal(deployer.address), bool(true)], sender.address);
@@ -55,8 +51,8 @@ const whitelistPrincipalTx = (deployer: Account, sender: Account) =>
 const addAirlineTx = (airline: Account, airlineName: string , caller: Account, status: number, whitelistedCaller: Account) =>
     Tx.contractCall(dataContract, "add-airline-data", [principal(airline.address), ascii(airlineName), principal(caller.address), uint(status)], whitelistedCaller.address );
 
-const fundAirlineTx = (airline: Account) =>
-    Tx.contractCall(dataContract, "fund-airline", [principal(airline.address)], airline.address);
+const fundAirlineTx = (airline: Account, deployer: Account) =>
+    Tx.contractCall(dataContract, "funded-airline-state", [principal(airline.address)], deployer.address);
 
 
 // *** unit tests *** //
@@ -228,31 +224,26 @@ Clarinet.test({
     },
 });
 
-
-
-
 // airline funding
 
 Clarinet.test({
-    name: "Check fund-airline",
+    name: "Check funded-airline-state",
     async fn(chain: Chain, accounts: Map<string, Account>) {
         const { deployer, airline1 } = getAccounts({accounts})
-      
+        const { whitelistBlock, whitelistedCaller } = whitelistDeployer({ chain, deployer: deployer, whitelist: deployer} )
+
         const block = chain.mineBlock([
-            fundAirlineTx(airline1)
+            fundAirlineTx(airline1, whitelistedCaller)
         ]);
         // check if block with tx is mined
         assertEquals(block.receipts.length, 1);
-        assertEquals(block.height, 2);
+        assertEquals(block.height, whitelistBlock.height + 1);
         // check if tx was successful
         block.receipts[0].result.expectOk().expectBool(true);
-        // check if contract got funds from airline
-        block.receipts[0].events.expectSTXTransferEvent(
-            AIRLINE_FUNDING,
-            airline1.address,
-            deployer.address.concat('.', dataContract),
-        );
-
+        // check airline state has changed to u3 "Funded" 
+        let result = getAirline(chain, airline1, deployer)        
+        let airlineData = result.result.expectSome().expectTuple()
+        airlineData['airline-state'].expectUint(3) 
     },
 });
 
