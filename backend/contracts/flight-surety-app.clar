@@ -2,10 +2,8 @@
 ;; flight-surety-app
 ;; <add a description here>
 
-
 ;; error consts
 ;;
-
 (define-constant ERR_CONTRACT_PAUSED (err u3010))
 (define-constant ERR_UNAUTHORISED (err u3011))
 
@@ -13,19 +11,22 @@
 (define-constant BAD_AIRLINE_STATUS (err u3002))
 (define-constant AIRLINE_ALREADY_REGISTERED (err u3003))
 (define-constant ONLY_BY_REGISTERED_AIRLINE (err u3004))
-(define-constant AIRLINE_NOT_IN_APPLICATION (err u3005))
-(define-constant AIRLINE_NAME_NOT_PROVIDED (err u3006))
+(define-constant AIRLINE_ALREADY_FUNDED (err u3005))
 (define-constant ALREADY_VOTED (err u3007))
 
 ;; constants
 ;;
-
 (define-constant CONTRACT_OWNER tx-sender)
-(define-data-var operational bool true)
-
+(define-constant AIRLINE_FUNDING u1000000)  ;; move to app --> logic
+(define-constant AIRLINE_STATE ;; move to app --> logic
+  (list "Init" "Application" "Registered" "Funded")
+)
+;;(define-constant CONTRACT_ADDRESS (as-contract tx-sender))
 ;;(define-constant contract-data 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.flight-surety-data)
 ;;(define-constant test-data ".flight-surety-data")
-;;(define-data-var data-contract principal 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.flight-surety-data)
+(define-data-var operational bool true)
+(define-data-var dataContract principal 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.flight-surety-data)
+(define-data-var appContract principal 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.flight-surety-app)
 
 ;; contract authorizations
 ;;
@@ -61,8 +62,12 @@
   (>= (default-to u0 (get airline-state (get-airline airline))) u2)
 )
 
-(define-private (has-already-voted (airline principal)) 
-  (is-none (index-of (default-to (list ) (get voters (get-airline airline))) airline))
+(define-read-only (registered-airline-count)  ;; to airline count
+  (contract-call? .flight-surety-data get-airlines-count)
+)
+
+(define-private (has-already-voted (caller principal) (airline principal)) 
+  (is-none (index-of (default-to (list ) (get voters (get-airline airline))) caller))
 )
 
 (define-private (voting-consensus (airline principal)) 
@@ -71,23 +76,14 @@
       (registeredAirlines (registered-airline-count))
       (airlineVotes  (+ (len (default-to (list ) (get voters (get-airline airline)))) u1) )
     ) 
-    (if (>= airlineVotes (+ (/ registeredAirlines u2) (mod registeredAirlines u2))) u2 u1)
+    (if (>= airlineVotes (+ (/ registeredAirlines u2) (mod registeredAirlines u2))) u2 u1)  
   )
 )
 
-(define-read-only (registered-airline-count)  ;; to airline count
-  (contract-call? .flight-surety-data get-airlines-count)
-)
 
 (define-read-only (get-airline (airline principal)) ;; main get fct , following extract throuh private
   (contract-call? .flight-surety-data get-airline airline)
 )
-
-;;; **** has airline state removed from data cotract ---> todo private in app contract
-;; (define-read-only (has-airline-state (airline principal) (minState uint)) ;;; Keep or make own fct in app 
-;;   (contract-call? .flight-surety-data has-airline-state airline minState)
-;; )
-
 
 
 (define-public (add-airline (airline principal) (airlineName (string-ascii 30)) (caller principal)) 
@@ -95,10 +91,23 @@
     (asserts! (is-operational) ERR_CONTRACT_PAUSED)
     (asserts! (is-registered caller) ONLY_BY_REGISTERED_AIRLINE)
     (asserts! (not (is-registered airline)) AIRLINE_ALREADY_REGISTERED) 
-    (asserts! (has-already-voted caller) ALREADY_VOTED)
+    (asserts! (has-already-voted caller airline) ALREADY_VOTED)
 
     (as-contract (contract-call? .flight-surety-data add-airline-data airline airlineName caller (voting-consensus airline)))
   )
 )
-;; (contract-call? .flight-surety-app registered-airline-count )
 
+(define-public (fund-airline) 
+  (let
+    (
+      (caller tx-sender)
+    )
+    (asserts! (is-operational) ERR_CONTRACT_PAUSED)
+    (asserts! (is-registered caller) ONLY_BY_REGISTERED_AIRLINE)
+    (asserts! (not (has-airline-state caller u3)) AIRLINE_ALREADY_FUNDED) 
+    
+    (try! (stx-transfer? AIRLINE_FUNDING caller (var-get dataContract)))
+    (as-contract (contract-call? .flight-surety-data funded-airline-state caller))
+  )
+)
+;; (contract-call? .flight-surety-app fund-airline)

@@ -32,6 +32,24 @@ function whitelistAppContract ({chain, deployer}: {chain: Chain, deployer: Accou
 
     return { whitelistBlock: block };
 }
+
+interface StxTransferEvent {
+	type: string,
+	stx_transfer_event: {
+		sender: string,
+		recipient: string,
+        amount: string
+	}
+}
+
+function assertStxTransfer(event: StxTransferEvent, amount: number, sender: string, recipient: string) {
+	assertEquals(typeof event, 'object');
+	assertEquals(event.type, 'stx_transfer_event');
+	event.stx_transfer_event.sender.expectPrincipal(sender);
+	event.stx_transfer_event.recipient.expectPrincipal(recipient);
+	event.stx_transfer_event.amount.expectInt(amount);
+}
+
 const isOperational = (chain: Chain, deployer: Account) =>
     chain.callReadOnlyFn(appContract, "is-operational", [], deployer.address);  // principal(deployer.address.concat('.', appContract))
 
@@ -52,6 +70,10 @@ const whitelistAppContractTx = (deployer: Account) =>
 
 const addAirlineTx = (airline: Account, airlineName: string , caller: Account, appSender: Account) =>
     Tx.contractCall(appContract, "add-airline", [principal(airline.address), ascii(airlineName), principal(caller.address)], appSender.address );
+
+const fundAirlineTx = (airline: Account) =>
+    Tx.contractCall(appContract, "fund-airline", [], airline.address );
+
 
 Clarinet.test({
     name: "Ensure that operational status is set correct on deployment and has proper functionality",
@@ -251,5 +273,24 @@ Clarinet.test({
     },    
 });
 
+// airline funding
+Clarinet.test({
+    name: "Ensure that airline funding is working properly",
+    async fn(chain: Chain, accounts: Map<string, Account>) {
+        const { deployer, airline1} = getAccounts({accounts})
+        const { whitelistBlock } = whitelistAppContract({ chain, deployer: deployer} )
 
+        let block = chain.mineBlock([
+            fundAirlineTx(airline1),
+        ]);
+        // tx result ok
+        block.receipts[0].result.expectOk().expectBool(true)
+        // expect airline state u3 "Funded"
+        let read = getAirline(chain, airline1, deployer)
+        let airlineData = read.result.expectSome().expectTuple()
+        airlineData['airline-state'].expectUint(3)
+        // Stx transfer successfull
+        assertStxTransfer(block.receipts[0].events[0], AIRLINE_FUNDING, airline1.address, deployer.address.concat('.', dataContract));
+    },    
+});
 
