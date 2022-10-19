@@ -7,6 +7,7 @@
 ;;
 (define-constant ERR_UNAUTHORISED (err u2011))
 (define-constant NOT_WHITELISTED (err u2012))
+(define-constant MAX_PAYOUT_EXCEEDED (err u2100))
 
 ;; constants
 ;;
@@ -37,6 +38,21 @@
     status-code: (list 4 uint),
     payout: (list 4 uint),
     max-payout: uint,
+  }
+)
+
+(define-map Sureties 
+  {
+    insuree: principal,
+    flight-id: (string-ascii 7), 
+    airline-id: uint,
+  } 
+  { 
+    departure: int,
+    payouts: {
+      code: (list 4 uint),
+      amount: (list 4 uint)
+    },
   }
 )
 
@@ -99,6 +115,10 @@
   (map-get? Airlines airline)
 )
 
+(define-read-only (get-last-block-time) 
+  (get-block-info? time (- block-height u1))
+)
+
 (define-public (add-airline-data (airline principal) (airlineName (string-ascii 30)) (caller principal) (status uint)) 
   (let 
     (
@@ -138,20 +158,66 @@
 )
 
 ;;  flights
-(define-read-only (get-flight (airline-id uint) (flight-id (string-ascii 7)))
-  (map-get? Flights { flight-id: flight-id, airline-id: airline-id })
+(define-read-only (get-flight (airlineId uint) (flightId (string-ascii 7)))
+  (map-get? Flights { flight-id: flightId, airline-id: airlineId })
 )
 
-(define-public (register-flight (airline-id uint) (flight-id (string-ascii 7)) (activate bool) (payouts {status: (list 4 uint),payout: (list 4 uint) }) (max-payout uint))
+(define-public (register-flight (airlineId uint) (flightId (string-ascii 7)) (activate bool) (payouts {status: (list 4 uint),payout: (list 4 uint) }) (maxPayout uint))
   (begin
     (asserts! (is-whitelisted contract-caller) NOT_WHITELISTED)
-    ;; #[filter(flight-id, airline-id, activate, payouts,max-payout)]
-    (map-set Flights { flight-id: flight-id, airline-id: airline-id } {
+    ;; #[filter(flightId, airlineId, activate, payouts, maxPayout)]
+    (map-set Flights { flight-id: flightId, airline-id: airlineId } {
        active: activate,
        status-code: (get status payouts),
        payout: (get payout payouts),
-       max-payout: max-payout,
+       max-payout: maxPayout,
     })
     (ok true)
+  )
+)
+
+;; purchase sureties
+(define-private (calculate-amounts (multiplier (list 4 uint)) (amount uint) ) 
+  (map / (map * (list amount amount amount amount) multiplier) (list u100 u100 u100 u100)) 
+)
+
+(define-private (check-max-amount (maxPayout uint) (amounts (list 4 uint))) 
+  (match (index-of (map >= (list maxPayout maxPayout maxPayout maxPayout) amounts) false) value false true)
+)
+
+(define-read-only (get-surety (insuree principal) (airlineId uint) (flightId (string-ascii 7)))
+  (map-get? Sureties {insuree: insuree, flight-id: flightId, airline-id: airlineId})
+)
+
+(define-public (purchase-surety (insuree principal) (airlineId uint) (flightId (string-ascii 7)) (departure int) (amount uint))
+  (let
+    (
+      (flight (unwrap-panic (map-get? Flights { flight-id: flightId, airline-id: airlineId })))
+      (amounts (calculate-amounts (get payout flight) amount))
+    )
+    (asserts! (is-whitelisted contract-caller) NOT_WHITELISTED)
+    (asserts! (check-max-amount (get max-payout flight) amounts) MAX_PAYOUT_EXCEEDED)
+    ;;; check timestamp is min 1 day in future
+    ;; #[filter(flightId, airlineId, insuree, departure)]
+    (map-set Sureties {insuree: insuree, flight-id: flightId, airline-id: airlineId} {
+      departure: 	departure,
+      payouts: {
+        code: (get status-code flight),
+        amount: amounts 
+      },
+    })
+    (ok true)
+  )
+)
+
+(define-public (surety-payout (insuree principal) (airlineId uint) (flightId (string-ascii 7)) (statusCode uint)) 
+  (let
+    (
+      (payout (get payouts (unwrap-panic (map-get? Sureties {insuree: insuree, flight-id: flightId, airline-id: airlineId}))))
+      (index (unwrap-panic (index-of (get code payout) statusCode)))
+      (amount (unwrap-panic (element-at (get amount payout) index)))
+    ) 
+    (asserts! (is-whitelisted contract-caller) NOT_WHITELISTED)
+    (as-contract (stx-transfer? amount CONTRACT_ADDRESS insuree) )
   )
 )

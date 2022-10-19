@@ -2,7 +2,7 @@
 import { Clarinet, Tx, Chain, Account, types } from 'https://deno.land/x/clarinet@v0.31.0/index.ts';
 import { assertEquals } from 'https://deno.land/std@0.90.0/testing/asserts.ts';
 
-const { uint, principal, bool, ascii, tuple, list } = types;
+const { uint, principal, bool, ascii, tuple, int } = types;
 
 const dataContract = 'flight-surety-data';
 const AIRLINE_FUNDING = 1000000;
@@ -47,6 +47,12 @@ const getAirlinesCount = (chain: Chain, sender: Account) =>
 const getFlight = (chain: Chain, airlineId: number, flightId: string ,sender: Account) =>
     chain.callReadOnlyFn(dataContract, "get-flight", [uint(airlineId), ascii(flightId)], sender.address);
 
+const getSurety = (chain: Chain, insuree: Account, airlineId: number, flightId: string ,sender: Account) =>
+    chain.callReadOnlyFn(dataContract, "get-surety", [principal(insuree.address), uint(airlineId), ascii(flightId)], sender.address);
+
+const lastBlockTime = (chain: Chain, sender: Account) =>
+    chain.callReadOnlyFn(dataContract, "get-last-block-time", [], sender.address);
+
 // public functions
 const whitelistPrincipalTx = (deployer: Account, sender: Account) => 
     Tx.contractCall(dataContract,'set-whitelisted',[principal(deployer.address), bool(true)], sender.address);
@@ -59,6 +65,13 @@ const fundAirlineTx = (airline: Account, deployer: Account) =>
 
 const addFlightTx = (airlineId: number, flightId: string , activate: boolean, payouts: any, maxPayout: number, whitelistedCaller: Account) =>
     Tx.contractCall(dataContract, "register-flight", [uint(airlineId), ascii(flightId), bool(activate), tuple(payouts), uint(maxPayout)], whitelistedCaller.address );
+
+const purchaseSuretyTx = (airlineId: number, flightId: string , departure: number, amount: number, insuree: Account) =>
+    Tx.contractCall(dataContract, "purchase-surety", [principal(insuree.address), uint(airlineId), ascii(flightId), int(departure), uint(amount)], insuree.address );
+
+const suretyPayoutTx = (insuree: Account, airlineId: number, flightId: string , status: number ) =>
+    Tx.contractCall(dataContract, "surety-payout", [principal(insuree.address), uint(airlineId), ascii(flightId), uint(status)], insuree.address );
+
 
 // *** unit tests *** //
 // whitelist app contract
@@ -261,7 +274,7 @@ Clarinet.test({
         const { whitelistBlock, whitelistedCaller } = whitelistDeployer({ chain, deployer: deployer, whitelist: deployer} )
         const payoutsTuple = { 
             status: types.list([uint(10), uint(20), uint(30)]),
-            payout: types.list([uint(5), uint(10), uint(15)])
+            payout: types.list([uint(105), uint(110), uint(115)])
         }
 
         const block = chain.mineBlock([
@@ -276,7 +289,65 @@ Clarinet.test({
         // check if flight is listed in mapping  
         let read = getFlight(chain, 1, "SK1234", whitelistedCaller);
         read.result.expectSome()
+    },
+});
+
+// sureties
+
+Clarinet.test({
+    name: "Check surety can be purchased",
+    async fn(chain: Chain, accounts: Map<string, Account>) {
+        const { deployer, airline1 } = getAccounts({accounts})
+        const { whitelistBlock, whitelistedCaller } = whitelistDeployer({ chain, deployer: deployer, whitelist: deployer} )
+        const payoutsTuple = { 
+            status: types.list([uint(1), uint(2)]),
+            payout: types.list([uint(105), uint(110)])
+        }
+
+        const block = chain.mineBlock([
+            fundAirlineTx(airline1, whitelistedCaller),
+            addFlightTx(1, "SK1234", true, payoutsTuple, 10000, whitelistedCaller),
+            purchaseSuretyTx(1, "SK1234", 123452435, 8000, whitelistedCaller)
+        ]);
+        // check if block with tx is mined
+        assertEquals(block.receipts.length, 3);
         
+        // check if tx was successful
+        block.receipts[2].result.expectOk().expectBool(true);
+        // check if flight is listed in mapping  
+        let read = getSurety(chain, deployer, 1, "SK1234", whitelistedCaller);
+        read.result.expectSome()
+    },
+});
+
+Clarinet.test({
+    name: "Check surety payout successfull ",
+    async fn(chain: Chain, accounts: Map<string, Account>) {
+        const { deployer, airline1 } = getAccounts({accounts})
+        const { whitelistBlock, whitelistedCaller } = whitelistDeployer({ chain, deployer: deployer, whitelist: deployer} )
+        const payoutsTuple = { 
+            status: types.list([uint(1), uint(2)]),
+            payout: types.list([uint(105), uint(110)])
+        }
+
+        const block = chain.mineBlock([
+            fundAirlineTx(airline1, whitelistedCaller),
+            Tx.transferSTX(1000000, deployer.address.concat('.', dataContract), airline1.address),
+            addFlightTx(1, "SK1234", true, payoutsTuple, 10000, whitelistedCaller),
+            purchaseSuretyTx(1, "SK1234", 123452435, 8000, whitelistedCaller),
+            suretyPayoutTx(deployer, 1, "SK1234", 2)
+        ]);
+        // check if block with tx is mined
+        assertEquals(block.receipts.length, 5);
+    
+        console.log(block.receipts[1].events[0]);
+        console.log(block.receipts[4].events[0]);
+        // check if tx was successful
+        block.receipts[2].result.expectOk().expectBool(true);
+        // check if flight is listed in mapping  
+        let read = getSurety(chain, deployer, 1, "SK1234", whitelistedCaller);
+        read.result.expectSome()
+        console.log(read);
     },
 });
 
