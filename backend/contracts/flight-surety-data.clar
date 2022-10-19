@@ -17,6 +17,7 @@
 ;;
 (define-data-var registeredAirlines uint u0) ;; Airlines registered
 (define-data-var idCounter uint u0)  ;; Airlines ID counter
+(define-data-var registeredFlights uint u0) ;; Flights registered
 
 (define-map AuthorizedCallers principal bool)
 (define-map Airlines 
@@ -29,8 +30,19 @@
   }
 )
 
+(define-map Flights 
+  { flight-id: (string-ascii 7), airline-id: uint } 
+  { 
+    active: bool,
+    status-code: (list 4 uint),
+    payout: (list 4 uint),
+    max-payout: uint,
+  }
+)
+
 ;; verify if funded state or something els should be added ----> has to be checked in tests, not done yet
 (define-map RegisteredAirlines uint principal)   ;; < implement , could be useful .... done for airline deployment, contract logic tbd
+(define-map RegisteredFlights uint {flight-name: (string-ascii 7), airline-id: uint }) 
 
 ;; init first airline on deployment
 (map-set Airlines 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5
@@ -120,6 +132,26 @@
 (define-public (funded-airline-state (airline principal))
   (begin
     (asserts! (is-whitelisted contract-caller) NOT_WHITELISTED)
+    ;; #[filter(airline)]
     (ok (set-airline-state airline u3))
+  )
+)
+
+;;  flights
+(define-read-only (get-flight (airline-id uint) (flight-id (string-ascii 7)))
+  (map-get? Flights { flight-id: flight-id, airline-id: airline-id })
+)
+
+(define-public (register-flight (airline-id uint) (flight-id (string-ascii 7)) (activate bool) (payouts {status: (list 4 uint),payout: (list 4 uint) }) (max-payout uint))
+  (begin
+    (asserts! (is-whitelisted contract-caller) NOT_WHITELISTED)
+    ;; #[filter(flight-id, airline-id, activate, payouts,max-payout)]
+    (map-set Flights { flight-id: flight-id, airline-id: airline-id } {
+       active: activate,
+       status-code: (get status payouts),
+       payout: (get payout payouts),
+       max-payout: max-payout,
+    })
+    (ok true)
   )
 )
