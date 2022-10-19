@@ -128,7 +128,7 @@
   )
 )
 
-;; assert airline is registered
+;; assert airline is registered  TODO: ADD Balances for airlines in contract
 (define-public (funded-airline-state (airline principal))
   (begin
     (asserts! (is-whitelisted contract-caller) NOT_WHITELISTED)
