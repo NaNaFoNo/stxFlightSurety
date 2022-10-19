@@ -34,6 +34,23 @@ function whitelistDeployer ({chain, deployer, whitelist}: {chain: Chain, deploye
     return { whitelistBlock: block, whitelistedCaller: whitelist};
 }
 
+interface StxTransferEvent {
+	type: string,
+	stx_transfer_event: {
+		sender: string,
+		recipient: string,
+        amount: string
+	}
+}
+
+function assertStxTransfer(event: StxTransferEvent, amount: number, sender: string, recipient: string) {
+	assertEquals(typeof event, 'object');
+	assertEquals(event.type, 'stx_transfer_event');
+	event.stx_transfer_event.sender.expectPrincipal(sender);
+	event.stx_transfer_event.recipient.expectPrincipal(recipient);
+	event.stx_transfer_event.amount.expectInt(amount);
+}
+
 // read-only functions
 const readIsWhitelisted = (chain: Chain, deployer: Account) =>
     chain.callReadOnlyFn(dataContract, "is-whitelisted", [principal(deployer.address),], deployer.address);  // principal(deployer.address.concat('.', appContract))
@@ -60,8 +77,8 @@ const whitelistPrincipalTx = (deployer: Account, sender: Account) =>
 const addAirlineTx = (airline: Account, airlineName: string , caller: Account, status: number, whitelistedCaller: Account) =>
     Tx.contractCall(dataContract, "add-airline-data", [principal(airline.address), ascii(airlineName), principal(caller.address), uint(status)], whitelistedCaller.address );
 
-const fundAirlineTx = (airline: Account, deployer: Account) =>
-    Tx.contractCall(dataContract, "funded-airline-state", [principal(airline.address)], deployer.address);
+const fundAirlineTx = (airline: Account, deployer: Account, amount: number) =>
+    Tx.contractCall(dataContract, "funded-airline-state", [principal(airline.address), uint(amount)], deployer.address);
 
 const addFlightTx = (airlineId: number, flightId: string , activate: boolean, payouts: any, maxPayout: number, whitelistedCaller: Account) =>
     Tx.contractCall(dataContract, "register-flight", [uint(airlineId), ascii(flightId), bool(activate), tuple(payouts), uint(maxPayout)], whitelistedCaller.address );
@@ -249,12 +266,13 @@ Clarinet.test({
     async fn(chain: Chain, accounts: Map<string, Account>) {
         const { deployer, airline1 } = getAccounts({accounts})
         const { whitelistBlock, whitelistedCaller } = whitelistDeployer({ chain, deployer: deployer, whitelist: deployer} )
-
+        const amount = 1000000;
         const block = chain.mineBlock([
-            fundAirlineTx(airline1, whitelistedCaller)
+            fundAirlineTx(airline1, whitelistedCaller, amount),
+            Tx.transferSTX(amount, deployer.address.concat('.', dataContract), airline1.address),
         ]);
         // check if block with tx is mined
-        assertEquals(block.receipts.length, 1);
+        assertEquals(block.receipts.length, 2);
         assertEquals(block.height, whitelistBlock.height + 1);
         // check if tx was successful
         block.receipts[0].result.expectOk().expectBool(true);
@@ -265,7 +283,7 @@ Clarinet.test({
     },
 });
 
-// flights
+// adding flights
 
 Clarinet.test({
     name: "Check if flight can be registered",
@@ -276,23 +294,24 @@ Clarinet.test({
             status: types.list([uint(10), uint(20), uint(30)]),
             payout: types.list([uint(105), uint(110), uint(115)])
         }
-
+        const amount = 1000000;
         const block = chain.mineBlock([
-            fundAirlineTx(airline1, whitelistedCaller),
+            fundAirlineTx(airline1, whitelistedCaller, amount),
+            Tx.transferSTX(amount, deployer.address.concat('.', dataContract), airline1.address),
             addFlightTx(1, "SK1234", true, payoutsTuple, 10000, whitelistedCaller)
         ]);
         // check if block with tx is mined
-        assertEquals(block.receipts.length, 2);
+        assertEquals(block.receipts.length, 3);
         
         // check if tx was successful
-        block.receipts[1].result.expectOk().expectBool(true);
+        block.receipts[2].result.expectOk().expectBool(true);
         // check if flight is listed in mapping  
         let read = getFlight(chain, 1, "SK1234", whitelistedCaller);
         read.result.expectSome()
     },
 });
 
-// sureties
+// Surety purchase and payout
 
 Clarinet.test({
     name: "Check surety can be purchased",
@@ -303,17 +322,18 @@ Clarinet.test({
             status: types.list([uint(1), uint(2)]),
             payout: types.list([uint(105), uint(110)])
         }
-
+        const amount = 1000000;
         const block = chain.mineBlock([
-            fundAirlineTx(airline1, whitelistedCaller),
+            fundAirlineTx(airline1, whitelistedCaller, amount),
+            Tx.transferSTX(amount, deployer.address.concat('.', dataContract), airline1.address),
             addFlightTx(1, "SK1234", true, payoutsTuple, 10000, whitelistedCaller),
             purchaseSuretyTx(1, "SK1234", 123452435, 8000, whitelistedCaller)
         ]);
         // check if block with tx is mined
-        assertEquals(block.receipts.length, 3);
+        assertEquals(block.receipts.length, 4);
         
         // check if tx was successful
-        block.receipts[2].result.expectOk().expectBool(true);
+        block.receipts[3].result.expectOk().expectBool(true);
         // check if flight is listed in mapping  
         let read = getSurety(chain, deployer, 1, "SK1234", whitelistedCaller);
         read.result.expectSome()
@@ -329,25 +349,22 @@ Clarinet.test({
             status: types.list([uint(1), uint(2)]),
             payout: types.list([uint(105), uint(110)])
         }
-
+        const amount = 1000000;
         const block = chain.mineBlock([
-            fundAirlineTx(airline1, whitelistedCaller),
-            Tx.transferSTX(1000000, deployer.address.concat('.', dataContract), airline1.address),
+            fundAirlineTx(airline1, whitelistedCaller, amount),
+            Tx.transferSTX(amount, deployer.address.concat('.', dataContract), airline1.address),
             addFlightTx(1, "SK1234", true, payoutsTuple, 10000, whitelistedCaller),
             purchaseSuretyTx(1, "SK1234", 123452435, 8000, whitelistedCaller),
             suretyPayoutTx(deployer, 1, "SK1234", 2)
         ]);
         // check if block with tx is mined
         assertEquals(block.receipts.length, 5);
-    
-        console.log(block.receipts[1].events[0]);
-        console.log(block.receipts[4].events[0]);
-        // check if tx was successful
-        block.receipts[2].result.expectOk().expectBool(true);
-        // check if flight is listed in mapping  
+        // check if stx transfer was successful
+        block.receipts[4].result.expectOk().expectBool(true);
+        assertStxTransfer(block.receipts[4].events[0], 8800, deployer.address.concat('.', dataContract), deployer.address,);
+        // check if surety is not longer listed in mapping  
         let read = getSurety(chain, deployer, 1, "SK1234", whitelistedCaller);
-        read.result.expectSome()
-        console.log(read);
+        read.result.expectNone()
     },
 });
 

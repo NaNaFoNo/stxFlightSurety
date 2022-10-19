@@ -17,8 +17,8 @@
 ;; constants
 ;;
 (define-constant CONTRACT_OWNER tx-sender)
-(define-constant AIRLINE_FUNDING u1000000)  ;; move to app --> logic
-(define-constant AIRLINE_STATE ;; move to app --> logic
+(define-constant AIRLINE_FUNDING u1000000) 
+(define-constant AIRLINE_STATE 
   (list "Init" "Application" "Registered" "Funded")
 )
 ;;(define-constant CONTRACT_ADDRESS (as-contract tx-sender))
@@ -107,7 +107,7 @@
     (asserts! (not (has-airline-state caller u3)) AIRLINE_ALREADY_FUNDED) 
     
     (try! (stx-transfer? AIRLINE_FUNDING caller (var-get dataContract)))
-    (as-contract (contract-call? .flight-surety-data funded-airline-state caller))
+    (as-contract (contract-call? .flight-surety-data funded-airline-state caller AIRLINE_FUNDING))
   )
 )
 ;; (contract-call? .flight-surety-app fund-airline)
