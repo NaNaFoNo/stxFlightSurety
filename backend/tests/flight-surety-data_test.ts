@@ -83,11 +83,14 @@ const fundAirlineTx = (airline: Account, deployer: Account, amount: number) =>
 const addFlightTx = (airlineId: number, flightId: string , activate: boolean, payouts: any, maxPayout: number, whitelistedCaller: Account) =>
     Tx.contractCall(dataContract, "register-flight", [uint(airlineId), ascii(flightId), bool(activate), tuple(payouts), uint(maxPayout)], whitelistedCaller.address );
 
-const purchaseSuretyTx = (airlineId: number, flightId: string , departure: number, amount: number, insuree: Account) =>
-    Tx.contractCall(dataContract, "purchase-surety", [principal(insuree.address), uint(airlineId), ascii(flightId), int(departure), uint(amount)], insuree.address );
+const updateFlightStatusTx = (airlineId: number, flightId: string , departure: number, status: number, whitelistedCaller: Account) =>
+    Tx.contractCall(dataContract, "update-flight-status", [uint(airlineId), ascii(flightId), int(departure), uint(status)], whitelistedCaller.address );
 
-const suretyPayoutTx = (insuree: Account, airlineId: number, flightId: string , status: number ) =>
-    Tx.contractCall(dataContract, "surety-payout", [principal(insuree.address), uint(airlineId), ascii(flightId), uint(status)], insuree.address );
+const purchaseSuretyTx = (airlineId: number, flightId: string , departure: number, amount: number, insuree: Account, whitelistedCaller: Account) =>
+    Tx.contractCall(dataContract, "purchase-surety", [principal(insuree.address), uint(airlineId), ascii(flightId), int(departure), uint(amount)], whitelistedCaller.address );
+
+const suretyPayoutTx = (insuree: Account, airlineId: number, flightId: string, whitelistedCaller: Account ) =>
+    Tx.contractCall(dataContract, "redeem-surety", [principal(insuree.address), uint(airlineId), ascii(flightId)], whitelistedCaller.address );
 
 
 // *** unit tests *** //
@@ -289,7 +292,7 @@ Clarinet.test({
     name: "Check if flight can be registered",
     async fn(chain: Chain, accounts: Map<string, Account>) {
         const { deployer, airline1 } = getAccounts({accounts})
-        const { whitelistBlock, whitelistedCaller } = whitelistDeployer({ chain, deployer: deployer, whitelist: deployer} )
+        const { whitelistedCaller } = whitelistDeployer({ chain, deployer: deployer, whitelist: deployer} )
         const payoutsTuple = { 
             status: types.list([uint(10), uint(20), uint(30)]),
             payout: types.list([uint(105), uint(110), uint(115)])
@@ -317,23 +320,26 @@ Clarinet.test({
     name: "Check surety can be purchased",
     async fn(chain: Chain, accounts: Map<string, Account>) {
         const { deployer, airline1 } = getAccounts({accounts})
-        const { whitelistBlock, whitelistedCaller } = whitelistDeployer({ chain, deployer: deployer, whitelist: deployer} )
+        const { whitelistedCaller } = whitelistDeployer({ chain, deployer: deployer, whitelist: deployer} )
         const payoutsTuple = { 
             status: types.list([uint(1), uint(2)]),
             payout: types.list([uint(105), uint(110)])
         }
+        const flightId = "SK1234";
+        const departure = 12313252463;
         const amount = 1000000;
         const block = chain.mineBlock([
             fundAirlineTx(airline1, whitelistedCaller, amount),
             Tx.transferSTX(amount, deployer.address.concat('.', dataContract), airline1.address),
             addFlightTx(1, "SK1234", true, payoutsTuple, 10000, whitelistedCaller),
-            purchaseSuretyTx(1, "SK1234", 123452435, 8000, whitelistedCaller)
+            purchaseSuretyTx(1, flightId, departure, 8000, deployer, whitelistedCaller),
         ]);
         // check if block with tx is mined
         assertEquals(block.receipts.length, 4);
         
         // check if tx was successful
-        block.receipts[3].result.expectOk().expectBool(true);
+        let tuple = block.receipts[3].result.expectOk().expectTuple();
+        tuple.result.expectBool(true)
         // check if flight is listed in mapping  
         let read = getSurety(chain, deployer, 1, "SK1234", whitelistedCaller);
         read.result.expectSome()
@@ -344,26 +350,29 @@ Clarinet.test({
     name: "Check surety payout successfull ",
     async fn(chain: Chain, accounts: Map<string, Account>) {
         const { deployer, airline1 } = getAccounts({accounts})
-        const { whitelistBlock, whitelistedCaller } = whitelistDeployer({ chain, deployer: deployer, whitelist: deployer} )
+        const { whitelistedCaller } = whitelistDeployer({ chain, deployer: deployer, whitelist: deployer} )
         const payoutsTuple = { 
             status: types.list([uint(1), uint(2)]),
             payout: types.list([uint(105), uint(110)])
         }
+        const flightId = "SK1234";
+        const departure = 12313252463;
         const amount = 1000000;
         const block = chain.mineBlock([
             fundAirlineTx(airline1, whitelistedCaller, amount),
             Tx.transferSTX(amount, deployer.address.concat('.', dataContract), airline1.address),
-            addFlightTx(1, "SK1234", true, payoutsTuple, 10000, whitelistedCaller),
-            purchaseSuretyTx(1, "SK1234", 123452435, 8000, whitelistedCaller),
-            suretyPayoutTx(deployer, 1, "SK1234", 2)
+            addFlightTx(1, flightId, true, payoutsTuple, 10000, whitelistedCaller),
+            purchaseSuretyTx(1, flightId, departure, 8000, deployer, whitelistedCaller),
+            updateFlightStatusTx(1, flightId, departure, 2, whitelistedCaller),
+            suretyPayoutTx(deployer, 1, flightId, whitelistedCaller)
         ]);
         // check if block with tx is mined
-        assertEquals(block.receipts.length, 5);
+        assertEquals(block.receipts.length, 6);
         // check if stx transfer was successful
         block.receipts[4].result.expectOk().expectBool(true);
-        assertStxTransfer(block.receipts[4].events[0], 8800, deployer.address.concat('.', dataContract), deployer.address,);
+        assertStxTransfer(block.receipts[5].events[0], 8800, deployer.address.concat('.', dataContract), deployer.address,);
         // check if surety is not longer listed in mapping  
-        let read = getSurety(chain, deployer, 1, "SK1234", whitelistedCaller);
+        let read = getSurety(chain, deployer, 1, flightId, whitelistedCaller);
         read.result.expectNone()
     },
 });
