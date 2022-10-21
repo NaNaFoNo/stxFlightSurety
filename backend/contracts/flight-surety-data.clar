@@ -25,9 +25,11 @@
 
 ;; data maps and vars
 ;;
-(define-data-var registeredAirlines uint u0) ;; Airlines registered
-(define-data-var idCounter uint u0)  ;; Airlines ID counter
-(define-data-var registeredFlights uint u0) ;; Flights registered
+(define-data-var idCounter uint u0)
+(define-data-var regAirlinesCount uint u0)
+(define-data-var regFlightsCount uint u0)
+(define-data-var pendSuretiesCount uint u0)
+
 
 (define-map AuthorizedCallers principal bool)
 (define-map Airlines 
@@ -39,26 +41,26 @@
     voters:  (list 25 principal),
   }
 )
-
+(define-map RegisteredAirlines uint principal)   ;; < implement , could be useful .... done for airline deployment, contract logic tbd
 (define-map AirlinesFund principal uint)
 
 (define-map Flights 
-  { flight-id: (string-ascii 7), airline-id: uint } 
+  { flight-number: (string-ascii 7), airline-id: uint } 
   { 
+    flight-id: uint,
     active: bool,
     status-code: (list 4 uint),
     payout: (list 4 uint),
     max-payout: uint,
   }
 )
-
-(define-map FlightStatuses { flight-id: (string-ascii 7), airline-id: uint, departure: int } uint)
+(define-map RegisteredFlights uint {flight-number: (string-ascii 7), airline-id: uint })
+(define-map FlightStatuses { flight-id: uint, departure: int } uint)
 
 (define-map Sureties 
   {
     insuree: principal,
-    flight-id: (string-ascii 7), 
-    airline-id: uint,
+    flight-id: uint,
   } 
   {
     departure: int,
@@ -68,13 +70,11 @@
     },
   }
 )
-
-;; verify if funded state or something els should be added ----> has to be checked in tests, not done yet
-(define-map RegisteredAirlines uint principal)   ;; < implement , could be useful .... done for airline deployment, contract logic tbd
-(define-map RegisteredFlights uint {flight-name: (string-ascii 7), airline-id: uint }) 
+(define-map PendingSureties uint {insuree: principal, flight-id: uint })
 
 ;; init first airline on deployment
 ;;
+(var-set idCounter u1)
 (map-set Airlines 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5
   { 
     airline-id: u1,
@@ -84,8 +84,8 @@
   }
 )
 (map-set RegisteredAirlines u1 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5)
-(var-set registeredAirlines u1)
-(var-set idCounter u1)
+(var-set regAirlinesCount u1)
+
 
 
 ;; whitelisting
@@ -105,10 +105,10 @@
 
 ;; airlines
 ;;
-(define-private (register (airline principal) (id uint))
+(define-private (register-airline (airline principal) (id uint))
   (begin 
     (map-set RegisteredAirlines id airline)
-    (var-set registeredAirlines (+ (var-get registeredAirlines) u1))
+    (var-set regAirlinesCount (+ (var-get regAirlinesCount) u1))
   )
 )
 
@@ -117,7 +117,7 @@
 )
 
 (define-read-only (get-airlines-count) 
-  (var-get registeredAirlines)
+  (var-get regAirlinesCount)
 )
 
 (define-read-only (get-airline (airline principal)) 
@@ -147,9 +147,9 @@
     })
 
     (if (is-none airlineData) (var-set idCounter id) false)
-    (if (is-eq status u2) (register airline id) false) 
+    (if (is-eq status u2) (register-airline airline id) false) 
     
-    (ok {airline-id: id, airline-state: status, votes: (len voteList), reg-airlines: (var-get registeredAirlines) })
+    (ok {airline-id: id, airline-state: status, votes: (len voteList), reg-airlines: (var-get regAirlinesCount) })
   )
 )
 
@@ -166,28 +166,36 @@
 
 ;;  flights
 ;;
-(define-read-only (get-flight (airlineId uint) (flightId (string-ascii 7)))
-  (map-get? Flights { flight-id: flightId, airline-id: airlineId })
+(define-read-only (get-flight (airlineId uint) (flightNumber (string-ascii 7)))
+  (map-get? Flights { flight-number: flightNumber, airline-id: airlineId })
 )
 
-(define-public (register-flight (airlineId uint) (flightId (string-ascii 7)) (activate bool) (payouts {status: (list 4 uint),payout: (list 4 uint) }) (maxPayout uint))
-  (begin
+(define-public (register-flight (airlineId uint) (flightNumber (string-ascii 7)) (activate bool) (payouts {status: (list 4 uint),payout: (list 4 uint) }) (maxPayout uint))
+  (let
+    (
+      (counter (+ (var-get regFlightsCount) u1))
+    )
     (asserts! (is-whitelisted contract-caller) NOT_WHITELISTED)
-    ;; #[filter(flightId, airlineId, activate, payouts, maxPayout)]
-    (map-set Flights { flight-id: flightId, airline-id: airlineId } {
-       active: activate,
-       status-code: (get status payouts),
-       payout: (get payout payouts),
-       max-payout: maxPayout,
+    ;; #[filter(flightNumber, airlineId, activate, payouts, maxPayout)]
+    (map-set Flights { flight-number: flightNumber, airline-id: airlineId } {
+      flight-id: counter,
+      active: activate,
+      status-code: (get status payouts),
+      payout: (get payout payouts),
+      max-payout: maxPayout,
     })
-    (ok true)
+    (map-set RegisteredFlights counter {flight-number: flightNumber, airline-id: airlineId })
+    (var-set regFlightsCount counter)
+    (ok {result: true, message: "Flight registered", flight-Id: counter})
   )
 )
 
-(define-public (update-flight-status (airlineId uint) (flightId (string-ascii 7)) (departure int) (status uint))
+(define-public (update-flight-status (flightId uint) (departure int) (status uint))
   (begin
     (asserts! (is-whitelisted contract-caller) NOT_WHITELISTED)
-    (ok (map-set FlightStatuses {flight-id: flightId, airline-id: airlineId, departure: departure} status))
+      ;; #[filter(flightId, departure, status)]
+    (map-set FlightStatuses {flight-id: flightId, departure: departure} status)
+    (ok {result: true, message: "Flight status updated", flight-id: flightId, status: status})
   )
 )
 
@@ -202,65 +210,63 @@
   (match (index-of (map >= (list max max max max) amounts) false) value false true)
 )
 
-(define-read-only (get-surety (insuree principal) (airlineId uint) (flightId (string-ascii 7)))
-  (map-get? Sureties {insuree: insuree, flight-id: flightId, airline-id: airlineId})
+(define-read-only (get-surety (insuree principal) (flightId uint))
+  (map-get? Sureties {insuree: insuree, flight-id: flightId})
 )
 
-(define-public (purchase-surety (insuree principal) (airlineId uint) (flightId (string-ascii 7)) (departure int) (amount uint))
+(define-public (purchase-surety (insuree principal) (flightId uint) (departure int) (amount uint))
   (let
     (
-      (flight (unwrap! (map-get? Flights { flight-id: flightId, airline-id: airlineId }) FLIGHT_NOT_FOUND))
+      (flightParameter (unwrap! (map-get? RegisteredFlights flightId) FLIGHT_NOT_FOUND))
+      (flight (unwrap! (map-get? Flights flightParameter) FLIGHT_NOT_FOUND))
       (amounts (calculate-amounts (get payout flight) amount))
-      (airline (unwrap! (map-get? RegisteredAirlines airlineId) AIRLINE_NOT_FOUND))
-      (status (default-to u0 (map-get? FlightStatuses {flight-id: flightId, airline-id: airlineId, departure: departure})))
+      (status (default-to u0 (map-get? FlightStatuses {flight-id: flightId, departure: departure})))
+      (airline (unwrap! (map-get? RegisteredAirlines (get airline-id flightParameter)) AIRLINE_NOT_FOUND))
       (airlineFund (unwrap! (map-get? AirlinesFund airline) AIRLINE_NOT_FUNDED))
     )
     (asserts! (is-whitelisted contract-caller) NOT_WHITELISTED)
     (asserts! (check-max-amount (get max-payout flight) amounts) MAX_PAYOUT_EXCEEDED)
     (asserts! (is-eq status u0) INVALID_FLIGHT_STATUS)
     ;;; check timestamp is min 1 day in future
-    ;; #[filter(flightId, airlineId, insuree, departure)]
-    (map-insert Sureties {insuree: insuree, flight-id: flightId, airline-id: airlineId} {
+    ;; #[filter(flightNumber, airlineId, insuree, departure)]
+    (map-insert Sureties {insuree: insuree, flight-id: flightId} {
       departure: 	departure,
       payouts: { code: (get status-code flight), amount: amounts },
     })
-    (map-insert FlightStatuses {flight-id: flightId, airline-id: airlineId, departure: departure} u0)
+    (map-insert FlightStatuses {flight-id: flightId, departure: departure} u0)
     
     (map-set AirlinesFund airline (+ amount airlineFund))  ;; to airlineID
     (ok {result: true, message: "Surety purchased"})
   )
 )
 
-(define-public (redeem-surety (insuree principal) (airlineId uint) (flightId (string-ascii 7))) 
+(define-public (redeem-surety (insuree principal) (flightId uint)) 
   (let
     (
-      (surety (map-get? Sureties {insuree: insuree, flight-id: flightId, airline-id: airlineId}))
+      (surety (map-get? Sureties {insuree: insuree, flight-id: flightId}))
       (departure (unwrap! (get departure surety) SURETY_NOT_FOUND))
-      (flightStatus (unwrap! (map-get? FlightStatuses {flight-id: flightId, airline-id: airlineId, departure: departure}) INVALID_FLIGHT_STATUS))
-      (index (index-of (get code (unwrap! (get payouts surety) SURETY_NOT_FOUND)) flightStatus))
+      (flightStatus (unwrap! (map-get? FlightStatuses {flight-id: flightId, departure: departure}) INVALID_FLIGHT_STATUS))
       (payout (unwrap! (get payouts surety) SURETY_NOT_FOUND))
-      (amount (unwrap! (element-at (get amount payout) (unwrap-panic index)) ELEMENT_NOT_FOUND))
-      (airline (unwrap! (map-get? RegisteredAirlines airlineId) AIRLINE_NOT_FOUND))
+      (index (index-of (get code payout) flightStatus))
+      (amount (default-to u0 (element-at (get amount payout) (default-to u4 index))))
+      (flightParameter (unwrap! (map-get? RegisteredFlights flightId) FLIGHT_NOT_FOUND))
+      (airline (unwrap! (map-get? RegisteredAirlines (get airline-id flightParameter)) AIRLINE_NOT_FOUND))
       (airlineFund (unwrap! (map-get? AirlinesFund airline) AIRLINE_NOT_FUNDED))
     ) 
     (asserts! (is-whitelisted contract-caller) NOT_WHITELISTED)
     (asserts! (not (is-eq flightStatus u0)) FLIGHT_STATUS_PENDING)
     (if (is-some index) 
       (begin
-        ;; #[filter(airline, insuree, airlineId, flightId)]
+        ;; #[filter(airline, insuree, flightId)]
         (map-set AirlinesFund airline (- airlineFund amount))
-        (map-delete Sureties {insuree: insuree, flight-id: flightId, airline-id: airlineId})
+        (map-delete Sureties {insuree: insuree, flight-id: flightId})
         (try! (as-contract (stx-transfer? amount CONTRACT_ADDRESS insuree)))
         (ok { result: true, message: "Surety has been paid to insuree", flight-status: flightStatus })
       ) 
       (begin
-        (map-delete Sureties {insuree: insuree, flight-id: flightId, airline-id: airlineId})
-        (ok { result: false, message: "No assurance applicable, surety removed", flight-status: flightStatus })
+        (map-delete Sureties {insuree: insuree, flight-id: flightId})
+        (ok { result: false, message: "No assurance applicable surety removed", flight-status: flightStatus })
       )
     )
-    
-    
-    
-    
   )
 )
