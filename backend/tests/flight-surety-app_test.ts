@@ -69,7 +69,7 @@ const setOperatingStatus = (status: boolean, caller: Account) =>
     Tx.contractCall(appContract, "set-operating-status", [bool(status)], caller.address ); 
     
 const registeredAirlineCount = (chain: Chain, deployer: Account) =>
-    chain.callReadOnlyFn(appContract, "registered-airline-count", [], deployer.address);  // principal(deployer.address.concat('.', appContract))
+    chain.callReadOnlyFn(appContract, "airlines-count", [], deployer.address);  // principal(deployer.address.concat('.', appContract))
 
 const getAirline = (chain: Chain, airline: Account, deployer: Account) =>
     chain.callReadOnlyFn(appContract, "get-airline", [principal(airline.address)], deployer.address);

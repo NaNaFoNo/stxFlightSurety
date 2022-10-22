@@ -24,12 +24,9 @@
 (define-constant AIRLINE_STATE 
   (list "Init" "Application" "Registered" "Funded")
 )
-;;(define-constant CONTRACT_ADDRESS (as-contract tx-sender))
-;;(define-constant contract-data 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.flight-surety-data)
-;;(define-constant test-data ".flight-surety-data")
+
 (define-data-var operational bool true)
 (define-data-var dataContract principal 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.flight-surety-data)
-(define-data-var appContract principal 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.flight-surety-app)
 
 ;; contract authorizations
 ;;
@@ -44,6 +41,7 @@
 (define-public (set-operating-status (status bool))
   (begin
     (asserts! (is-eq CONTRACT_OWNER tx-sender) ERR_UNAUTHORISED)
+    ;; #[filter(status)]
     (ok (var-set operational status))
   )
 )
@@ -65,7 +63,7 @@
   (>= (default-to u0 (get airline-state (get-airline airline))) u2)
 )
 
-(define-read-only (registered-airline-count)  ;; to airline count
+(define-read-only (airlines-count) 
   (contract-call? .flight-surety-data get-airlines-count)
 )
 
@@ -76,21 +74,16 @@
 (define-private (voting-consensus (airline principal)) 
   (let 
     (
-      (registeredAirlines (registered-airline-count))
+      (registeredAirlines (airlines-count))
       (airlineVotes  (+ (len (default-to (list ) (get voters (get-airline airline)))) u1) )
     ) 
     (if (>= airlineVotes (+ (/ registeredAirlines u2) (mod registeredAirlines u2))) u2 u1)  
   )
 )
 
-
 (define-read-only (get-airline (airline principal)) 
   (contract-call? .flight-surety-data get-airline airline)
 )
-
-;;;(define-read-only (get-airline-by-flight (flightId uint))
-;;;  (contract-call? .flight-surety-data get-airline-by-flight flightId)
-;;;)
 
 (define-public (add-airline (airline principal) (airlineName (string-ascii 30)) (caller principal)) 
   (begin
@@ -116,7 +109,9 @@
     (as-contract (contract-call? .flight-surety-data funded-airline-state caller AIRLINE_FUNDING))
   )
 )
+
 ;; flight functions
+;;
 (define-read-only (get-flight (airlineId uint) (flightId (string-ascii 7))) 
   (contract-call? .flight-surety-data get-flight airlineId flightId)
 )
@@ -125,7 +120,8 @@
   (let 
     (
       (airlineId (unwrap! (get airline-id (get-airline tx-sender)) AIRLINE_NOT_FOUND))
-    ) 
+    )
+    (asserts! (is-operational) ERR_CONTRACT_PAUSED)
     (asserts! (has-airline-state tx-sender u3) AIRLINE_NOT_FUNDED)
     (as-contract (contract-call? .flight-surety-data register-flight airlineId flightId activate payouts maxPayout))
   )
@@ -136,36 +132,37 @@
     (
       (airline (unwrap! (contract-call? .flight-surety-data get-airline-by-flight flightId) AIRLINE_NOT_FOUND))
     )
+    (asserts! (is-operational) ERR_CONTRACT_PAUSED)
     (asserts! (is-eq tx-sender airline) ERR_UNAUTHORISED)
     (as-contract (contract-call? .flight-surety-data update-flight-status flightId departure status))
   )
 )
 
-;; purchase a flight surety
-
+;; Surety functions
+;;
 (define-read-only (get-surety (insuree principal) (flightId uint))
   (contract-call? .flight-surety-data get-surety insuree flightId)
 )
-;;(purchase-surety (insuree principal) (flightId uint) (departure int) (amount uint)
+
 (define-public (purchase-surety (flightId uint) (departure int) (amount uint))
   (let 
     (
       (insuree tx-sender)
-    ) 
-    ;;(asserts! (has-airline-state tx-sender u3) AIRLINE_NOT_FUNDED)
+    )
+    (asserts! (is-operational) ERR_CONTRACT_PAUSED)
+    
     (try! (stx-transfer? amount tx-sender (var-get dataContract)))
     (as-contract (contract-call? .flight-surety-data purchase-surety insuree flightId departure amount))
-    ;;(ok flight)
   )
 )
-;;; status code not working (secret by airline to buff to sha compre validity)
+
 (define-public (surety-payout (flightId uint))
   (let 
     (
       (insuree tx-sender)
-    ) 
-    ;;(asserts! (has-airline-state tx-sender u3) AIRLINE_NOT_FUNDED)
+    )
+    (asserts! (is-operational) ERR_CONTRACT_PAUSED)
+    
     (as-contract (contract-call? .flight-surety-data redeem-surety insuree flightId))
-    ;;(ok flight)
   )
 )

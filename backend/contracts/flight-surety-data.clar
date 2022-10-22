@@ -28,8 +28,6 @@
 (define-data-var idCounter uint u0)
 (define-data-var regAirlinesCount uint u0)
 (define-data-var regFlightsCount uint u0)
-(define-data-var pendSuretiesCount uint u0)
-
 
 (define-map AuthorizedCallers principal bool)
 (define-map Airlines 
@@ -70,7 +68,7 @@
     },
   }
 )
-(define-map PendingSureties uint {insuree: principal, flight-id: uint })
+
 
 ;; init first airline on deployment
 ;;
@@ -85,7 +83,6 @@
 )
 (map-set RegisteredAirlines u1 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5)
 (var-set regAirlinesCount u1)
-
 
 
 ;; whitelisting
@@ -244,7 +241,8 @@
       payouts: { code: (get status-code flight), amount: amounts },
     })
     (map-insert FlightStatuses {flight-id: flightId, departure: departure} u0)
-    
+   
+
     (map-set AirlinesFund airline (+ amount airlineFund))  ;; to airlineID
     (ok {result: true, message: "Surety purchased"})
   )
