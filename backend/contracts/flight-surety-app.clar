@@ -13,11 +13,14 @@
 (define-constant ONLY_BY_REGISTERED_AIRLINE (err u3004))
 (define-constant AIRLINE_ALREADY_FUNDED (err u3005))
 (define-constant ALREADY_VOTED (err u3007))
+(define-constant AIRLINE_NOT_FUNDED (err u3008))
+(define-constant FLIGHT_NOT_REGISTERED (err u3008))
+
 
 ;; constants
 ;;
 (define-constant CONTRACT_OWNER tx-sender)
-(define-constant AIRLINE_FUNDING u1000000) 
+(define-constant AIRLINE_FUNDING u500000000) 
 (define-constant AIRLINE_STATE 
   (list "Init" "Application" "Registered" "Funded")
 )
@@ -81,10 +84,13 @@
 )
 
 
-(define-read-only (get-airline (airline principal)) ;; main get fct , following extract throuh private
+(define-read-only (get-airline (airline principal)) 
   (contract-call? .flight-surety-data get-airline airline)
 )
 
+;;;(define-read-only (get-airline-by-flight (flightId uint))
+;;;  (contract-call? .flight-surety-data get-airline-by-flight flightId)
+;;;)
 
 (define-public (add-airline (airline principal) (airlineName (string-ascii 30)) (caller principal)) 
   (begin
@@ -110,4 +116,56 @@
     (as-contract (contract-call? .flight-surety-data funded-airline-state caller AIRLINE_FUNDING))
   )
 )
-;; (contract-call? .flight-surety-app fund-airline)
+;; flight functions
+(define-read-only (get-flight (airlineId uint) (flightId (string-ascii 7))) 
+  (contract-call? .flight-surety-data get-flight airlineId flightId)
+)
+
+(define-public (register-flight (flightId (string-ascii 7)) (payouts {status: (list 4 uint),payout: (list 4 uint) }) (maxPayout uint) (activate bool))
+  (let 
+    (
+      (airlineId (unwrap! (get airline-id (get-airline tx-sender)) AIRLINE_NOT_FOUND))
+    ) 
+    (asserts! (has-airline-state tx-sender u3) AIRLINE_NOT_FUNDED)
+    (as-contract (contract-call? .flight-surety-data register-flight airlineId flightId activate payouts maxPayout))
+  )
+)
+
+(define-public (update-flight (flightId uint) (departure int) (status uint))
+  (let
+    (
+      (airline (unwrap! (contract-call? .flight-surety-data get-airline-by-flight flightId) AIRLINE_NOT_FOUND))
+    )
+    (asserts! (is-eq tx-sender airline) ERR_UNAUTHORISED)
+    (as-contract (contract-call? .flight-surety-data update-flight-status flightId departure status))
+  )
+)
+
+;; purchase a flight surety
+
+(define-read-only (get-surety (insuree principal) (flightId uint))
+  (contract-call? .flight-surety-data get-surety insuree flightId)
+)
+;;(purchase-surety (insuree principal) (flightId uint) (departure int) (amount uint)
+(define-public (purchase-surety (flightId uint) (departure int) (amount uint))
+  (let 
+    (
+      (insuree tx-sender)
+    ) 
+    ;;(asserts! (has-airline-state tx-sender u3) AIRLINE_NOT_FUNDED)
+    (try! (stx-transfer? amount tx-sender (var-get dataContract)))
+    (as-contract (contract-call? .flight-surety-data purchase-surety insuree flightId departure amount))
+    ;;(ok flight)
+  )
+)
+;;; status code not working (secret by airline to buff to sha compre validity)
+(define-public (surety-payout (flightId uint))
+  (let 
+    (
+      (insuree tx-sender)
+    ) 
+    ;;(asserts! (has-airline-state tx-sender u3) AIRLINE_NOT_FUNDED)
+    (as-contract (contract-call? .flight-surety-data redeem-surety insuree flightId))
+    ;;(ok flight)
+  )
+)

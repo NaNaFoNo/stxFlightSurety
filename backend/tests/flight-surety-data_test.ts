@@ -21,8 +21,9 @@ function getTestParameters() {
     const flightNumber = "SK1234"
     const departure = 1667236005; // unix timestamp flight departure time
     const maxPayout = 1000000
+    const purchaseAmount = 8000
 
-    return { airlineFundAmount, flightNumber, departure, maxPayout }
+    return { airlineFundAmount, flightNumber, departure, maxPayout, purchaseAmount}
 }
 
 // whitelist a principal to call functions
@@ -98,7 +99,6 @@ function assertStxTransfer(event: StxTransferEvent, amount: number, sender: stri
     event.stx_transfer_event.recipient.expectPrincipal(recipient);
     event.stx_transfer_event.amount.expectInt(amount);
 }
-
 
 
 // *** unit tests *** //
@@ -303,8 +303,8 @@ Clarinet.test({
         const { whitelistedCaller } = whitelistDeployer({ chain, deployer: deployer, whitelist: deployer} )
         const { airlineFundAmount, flightNumber, maxPayout } = getTestParameters()
         const payoutsTuple = { 
-            status: types.list([uint(10), uint(20), uint(30)]),
-            payout: types.list([uint(105), uint(110), uint(115)])
+            status: types.list([uint(10), uint(20)]),
+            payout: types.list([uint(105), uint(110)])
         }
         
         const block = chain.mineBlock([
@@ -314,26 +314,35 @@ Clarinet.test({
         ]);
         // check if block with tx is mined
         assertEquals(block.receipts.length, 3);
+        
         // check if tx result was successful
         let tuple = block.receipts[2].result.expectOk().expectTuple();
         tuple['result'].expectBool(true);
         tuple['message'].expectAscii("Flight registered");
-        tuple['flight-Id'].expectUint(1);
+        tuple['flight-id'].expectUint(1);
         // check if flight is listed in mapping  
         let read = getFlight(chain, 1, flightNumber, whitelistedCaller);
-        read.result.expectSome()
-    },
+        tuple = read.result.expectSome().expectTuple();
+        tuple.active.expectBool(true)
+        tuple['flight-id'].expectUint(1)
+        tuple['max-payout'].expectUint(maxPayout)
+        let list = tuple.payout.expectList()
+        list[0].expectUint(105)
+        list[1].expectUint(110)
+        list = tuple['status-code'].expectList()
+        list[0].expectUint(10)
+        list[1].expectUint(20)
+    },//
 });
 
-// Surety purchase and payout
+// Surety purchase and payout  ;;; todo max payout amount exceeded
 
 Clarinet.test({
     name: "Check surety can be purchased",
     async fn(chain: Chain, accounts: Map<string, Account>) {
         const { deployer, airline1, customer1 } = getAccounts({accounts})
         const { whitelistedCaller } = whitelistDeployer({ chain, deployer: deployer, whitelist: deployer} )
-        const { airlineFundAmount, flightNumber, departure, maxPayout } = getTestParameters()
-        const purchaseAmount = 8000
+        const { airlineFundAmount, flightNumber, departure, maxPayout, purchaseAmount } = getTestParameters()
         const flightStatus = [10, 20]
         const payout = [105, 110]
         const payoutsTuple = { 
@@ -345,7 +354,7 @@ Clarinet.test({
             fundAirlineTx(airline1, whitelistedCaller, airlineFundAmount),
             Tx.transferSTX(airlineFundAmount, deployer.address.concat('.', dataContract), airline1.address),
             addFlightTx(1, flightNumber, true, payoutsTuple, maxPayout, whitelistedCaller),
-            purchaseSuretyTx(1, departure, 8000, customer1, whitelistedCaller),
+            purchaseSuretyTx(1, departure, purchaseAmount, customer1, whitelistedCaller),
         ]);
         // check if block with tx is mined
         assertEquals(block.receipts.length, 4);
@@ -353,7 +362,7 @@ Clarinet.test({
         let tuple = block.receipts[3].result.expectOk().expectTuple();
         tuple.result.expectBool(true)
         tuple.message.expectAscii("Surety purchased")
-        // check if flight is listed in mapping  
+        // check if surety is listed in mapping  
         let read = getSurety(chain, customer1, 1, whitelistedCaller);
         tuple = read.result.expectSome().expectTuple();
         tuple.departure.expectInt(departure)
@@ -372,7 +381,7 @@ Clarinet.test({
     async fn(chain: Chain, accounts: Map<string, Account>) {
         const { deployer, airline1, customer1 } = getAccounts({accounts})
         const { whitelistedCaller } = whitelistDeployer({ chain, deployer: deployer, whitelist: deployer} )
-        const { airlineFundAmount, flightNumber, departure } = getTestParameters()
+        const { airlineFundAmount, flightNumber, departure, purchaseAmount } = getTestParameters()
         const flightStatus = [10, 20]
         const payoutsTuple = { 
             status: types.list([uint(flightStatus[1]), uint(flightStatus[1])]),
@@ -382,7 +391,7 @@ Clarinet.test({
             fundAirlineTx(airline1, whitelistedCaller, airlineFundAmount),
             Tx.transferSTX(airlineFundAmount, deployer.address.concat('.', dataContract), airline1.address),
             addFlightTx(1, flightNumber, true, payoutsTuple, 10000, whitelistedCaller),
-            purchaseSuretyTx(1, departure, 8000, customer1, whitelistedCaller),
+            purchaseSuretyTx(1, departure, purchaseAmount, customer1, whitelistedCaller),
             updateFlightStatusTx(1, departure, flightStatus[1], whitelistedCaller),
         ]);
         // check if block with tx is mined
@@ -402,8 +411,7 @@ Clarinet.test({
     async fn(chain: Chain, accounts: Map<string, Account>) {
         const { deployer, airline1, customer1 } = getAccounts({accounts})
         const { whitelistedCaller } = whitelistDeployer({ chain, deployer: deployer, whitelist: deployer} )
-        const { airlineFundAmount, flightNumber, departure, maxPayout } = getTestParameters()
-        const purchaseAmount = 8000
+        const { airlineFundAmount, flightNumber, departure, maxPayout, purchaseAmount } = getTestParameters()
         const flightStatus = [10, 20]
         const payout = [105, 110]
         const payoutsTuple = { 
@@ -440,8 +448,7 @@ Clarinet.test({
     async fn(chain: Chain, accounts: Map<string, Account>) {
         const { deployer, airline1, customer1 } = getAccounts({accounts})
         const { whitelistedCaller } = whitelistDeployer({ chain, deployer: deployer, whitelist: deployer} )
-        const { airlineFundAmount, flightNumber, departure, maxPayout } = getTestParameters()
-        const purchaseAmount = 8000
+        const { airlineFundAmount, flightNumber, departure, maxPayout, purchaseAmount } = getTestParameters()
         const flightStatus = [10, 20]
         const alternateStatus = 50 
         const payout = [105, 110]
@@ -477,8 +484,7 @@ Clarinet.test({
     async fn(chain: Chain, accounts: Map<string, Account>) {
         const { deployer, airline1, customer1 } = getAccounts({accounts})
         const { whitelistedCaller } = whitelistDeployer({ chain, deployer: deployer, whitelist: deployer} )
-        const { airlineFundAmount, flightNumber, departure, maxPayout } = getTestParameters()
-        const purchaseAmount = 8000
+        const { airlineFundAmount, flightNumber, departure, maxPayout, purchaseAmount } = getTestParameters()
         const flightStatus = [10, 20]
         const payout = [105, 110]
         const payoutsTuple = { 

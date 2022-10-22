@@ -124,6 +124,15 @@
   (map-get? Airlines airline)
 )
 
+(define-read-only (get-airline-by-flight (flightId uint))
+  (let
+    (
+      (airlineId (get airline-id (unwrap! (map-get? RegisteredFlights flightId) FLIGHT_NOT_FOUND)))
+    )
+    (ok (unwrap! (map-get? RegisteredAirlines airlineId) AIRLINE_NOT_FOUND))
+  )
+)
+
 (define-public (add-airline-data (airline principal) (airlineName (string-ascii 30)) (caller principal) (status uint)) 
   (let 
     (
@@ -170,6 +179,7 @@
   (map-get? Flights { flight-number: flightNumber, airline-id: airlineId })
 )
 
+
 (define-public (register-flight (airlineId uint) (flightNumber (string-ascii 7)) (activate bool) (payouts {status: (list 4 uint),payout: (list 4 uint) }) (maxPayout uint))
   (let
     (
@@ -186,7 +196,7 @@
     })
     (map-set RegisteredFlights counter {flight-number: flightNumber, airline-id: airlineId })
     (var-set regFlightsCount counter)
-    (ok {result: true, message: "Flight registered", flight-Id: counter})
+    (ok {result: true, message: "Flight registered", flight-id: counter})
   )
 )
 
@@ -228,7 +238,7 @@
     (asserts! (check-max-amount (get max-payout flight) amounts) MAX_PAYOUT_EXCEEDED)
     (asserts! (is-eq status u0) INVALID_FLIGHT_STATUS)
     ;;; check timestamp is min 1 day in future
-    ;; #[filter(flightNumber, airlineId, insuree, departure)]
+    ;; #[filter(flightId, airlineId, insuree, departure)]
     (map-insert Sureties {insuree: insuree, flight-id: flightId} {
       departure: 	departure,
       payouts: { code: (get status-code flight), amount: amounts },
