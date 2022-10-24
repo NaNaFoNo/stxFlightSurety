@@ -1,7 +1,5 @@
 
 ;; flight-surety-data
-;; <add a description here>
-
 
 ;; error consts   ;;;
 (define-constant ERR_UNAUTHORISED (err u2011))
@@ -151,10 +149,8 @@
       airline-name: airlineName,
       voters:  (unwrap! (as-max-len? voteList u25) MAX_AIRLINES_EXCEEDED),
     })
-
     (if (is-none airlineData) (var-set idCounter id) false)
     (if (is-eq status u2) (register-airline airline id) false) 
-    
     (ok {airline-id: id, airline-state: status, votes: (len voteList), reg-airlines: (var-get regAirlinesCount) })
   )
 )
@@ -241,8 +237,6 @@
       payouts: { code: (get status-code flight), amount: amounts },
     })
     (map-insert FlightStatuses {flight-id: flightId, departure: departure} u0)
-   
-
     (map-set AirlinesFund airline (+ amount airlineFund))  ;; to airlineID
     (ok {result: true, message: "Surety purchased"})
   )

@@ -18,10 +18,10 @@ function getAccounts ({accounts}: {accounts: Map<string, Account>}){
 
 function getTestParameters() {
     const airlineFundAmount = 500000000;  // STX amount to pay by airline to get state funded
-    const flightNumber = "SK1234"
+    const flightNumber = "SK1234"   
     const departure = 1667236005; // unix timestamp flight departure time
-    const maxPayout = 1000000
-    const purchaseAmount = 8000
+    const maxPayout = 1000000   // max payout for flight surety
+    const purchaseAmount = 8000 
 
     return { airlineFundAmount, flightNumber, departure, maxPayout, purchaseAmount}
 }
@@ -43,7 +43,6 @@ function whitelistDeployer ({chain, deployer, whitelist}: {chain: Chain, deploye
 
     return { whitelistBlock: block, whitelistedCaller: whitelist};
 }
-
 
 // read-only functions
 const readIsWhitelisted = (chain: Chain, deployer: Account) =>
@@ -142,7 +141,7 @@ Clarinet.test({
 });
 
 // airlines
-// check if arirline is registered on deployment
+
 Clarinet.test({
     name: "Check airline registered on deployment, read-only-functions working properly",
     async fn(chain: Chain, accounts: Map<string, Account>) {
@@ -163,7 +162,6 @@ Clarinet.test({
     },
 });
 
-// add airline data  (checks: new airline (id+ state vote), update airline (id data-update vote+/state+), )
 Clarinet.test({
     name: "Check if new airline can be added, and data vars and maps are filled properly", 
     async fn(chain: Chain, accounts: Map<string, Account>) {

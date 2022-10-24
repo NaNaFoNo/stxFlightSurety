@@ -1,6 +1,5 @@
 
 ;; flight-surety-app
-;; <add a description here>
 
 ;; error consts
 ;;
@@ -16,7 +15,6 @@
 (define-constant AIRLINE_NOT_FUNDED (err u3008))
 (define-constant FLIGHT_NOT_REGISTERED (err u3008))
 
-
 ;; constants
 ;;
 (define-constant CONTRACT_OWNER tx-sender)
@@ -25,6 +23,8 @@
   (list "Init" "Application" "Registered" "Funded")
 )
 
+;; data maps and vars
+;;
 (define-data-var operational bool true)
 (define-data-var dataContract principal 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.flight-surety-data)
 
@@ -91,7 +91,6 @@
     (asserts! (is-registered caller) ONLY_BY_REGISTERED_AIRLINE)
     (asserts! (not (is-registered airline)) AIRLINE_ALREADY_REGISTERED) 
     (asserts! (has-already-voted caller airline) ALREADY_VOTED)
-
     (as-contract (contract-call? .flight-surety-data add-airline-data airline airlineName caller (voting-consensus airline)))
   )
 )
@@ -104,7 +103,6 @@
     (asserts! (is-operational) ERR_CONTRACT_PAUSED)
     (asserts! (is-registered caller) ONLY_BY_REGISTERED_AIRLINE)
     (asserts! (not (has-airline-state caller u3)) AIRLINE_ALREADY_FUNDED) 
-    
     (try! (stx-transfer? AIRLINE_FUNDING caller (var-get dataContract)))
     (as-contract (contract-call? .flight-surety-data funded-airline-state caller AIRLINE_FUNDING))
   )
@@ -149,8 +147,7 @@
     (
       (insuree tx-sender)
     )
-    (asserts! (is-operational) ERR_CONTRACT_PAUSED)
-    
+    (asserts! (is-operational) ERR_CONTRACT_PAUSED) 
     (try! (stx-transfer? amount tx-sender (var-get dataContract)))
     (as-contract (contract-call? .flight-surety-data purchase-surety insuree flightId departure amount))
   )
@@ -162,7 +159,6 @@
       (insuree tx-sender)
     )
     (asserts! (is-operational) ERR_CONTRACT_PAUSED)
-    
     (as-contract (contract-call? .flight-surety-data redeem-surety insuree flightId))
   )
 )
